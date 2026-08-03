@@ -137,6 +137,34 @@ button {
   color: #1a7a4a;
 }
 
+.topbar__actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-left: auto;
+}
+
+.btn-info {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: #ffffff;
+  color: var(--ink-soft);
+  transition: all .15s ease;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.03);
+}
+
+.btn-info:hover {
+  background: var(--teal-pale);
+  color: var(--teal-dark);
+  border-color: var(--teal);
+  transform: translateY(-1px);
+}
+
 .btn-render {
   display: flex;
   align-items: center;
@@ -152,7 +180,6 @@ button {
   letter-spacing: .01em;
   box-shadow: 0 4px 16px rgba(58, 198, 198, .35), 0 2px 4px rgba(58, 198, 198, .2);
   transition: transform .15s ease, box-shadow .15s ease, opacity .15s;
-  margin-left: auto;
 }
 
 .btn-render:hover {
@@ -1781,7 +1808,80 @@ textarea {
   background: rgba(58, 198, 198, .15);
   padding: 2px 6px;
   border-radius: 4px;
-  font-size: 12px;
+  color: #fff;
+  font-family: monospace;
+}
+
+.info-modal-box {
+  max-width: 440px;
+}
+
+.info-modal__body {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 20px 24px;
+}
+
+.info-app-logo {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.brand__logo--lg {
+  width: 48px;
+  height: 48px;
+  font-size: 24px;
+  border-radius: 12px;
+}
+
+.info-app-title {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 800;
+  color: #ffffff;
+  letter-spacing: -0.02em;
+}
+
+.info-app-subtitle {
+  margin: 2px 0 0 0;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.info-details-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: 16px;
+}
+
+.info-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13.5px;
+  padding-bottom: 10px;
+  border-bottom: 1px dashed rgba(255, 255, 255, 0.12);
+}
+
+.info-row:last-child {
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
+.info-label {
+  color: rgba(255, 255, 255, 0.7);
+  font-weight: 500;
+}
+
+.info-value {
+  color: var(--teal-light);
+  font-weight: 700;
 }
 
 .render-settings__foot {

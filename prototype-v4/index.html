@@ -18,13 +18,23 @@
       <span class="brand__logo">R</span>
       <strong class="brand__name">riki.scene</strong>
     </div>
-    <button class="btn-render" id="renderButton" type="button">
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
-        stroke-linecap="round" stroke-linejoin="round">
-        <polygon points="5 3 19 12 5 21 5 3" />
-      </svg>
-      Bắt đầu tạo video
-    </button>
+    <div class="topbar__actions">
+      <button class="btn-info" id="infoBtn" type="button" title="Thông tin ứng dụng (Auth, Version)">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+          stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10" />
+          <line x1="12" y1="16" x2="12" y2="12" />
+          <line x1="12" y1="8" x2="12.01" y2="8" />
+        </svg>
+      </button>
+      <button class="btn-render" id="renderButton" type="button">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+          stroke-linecap="round" stroke-linejoin="round">
+          <polygon points="5 3 19 12 5 21 5 3" />
+        </svg>
+        Bắt đầu tạo video
+      </button>
+    </div>
   </header>
 
   <main class="layout">
@@ -420,6 +430,42 @@ Khi so sánh hai khái niệm, hãy nhìn vào điểm khác nhau trong cách đ
         <button class="render-panel__btn render-panel__btn--cancel" id="settingsCancelBtn" type="button">Hủy</button>
         <button class="render-panel__btn render-panel__btn--confirm" id="settingsConfirmBtn" type="button">Bắt đầu
           render →</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="render-settings" id="infoModal" hidden>
+    <div class="render-settings__backdrop" id="infoModalBackdrop"></div>
+    <div class="render-settings__box info-modal-box">
+      <div class="render-settings__head">
+        <strong>Thông tin ứng dụng</strong>
+        <button class="render-panel__close" id="infoModalClose" type="button" aria-label="Đóng">×</button>
+      </div>
+      <div class="info-modal__body">
+        <div class="info-app-logo">
+          <span class="brand__logo brand__logo--lg">R</span>
+          <div>
+            <h3 class="info-app-title">Riki Scene</h3>
+            <p class="info-app-subtitle">Xưởng Tạo Video Ngắn Tự Động</p>
+          </div>
+        </div>
+        <div class="info-details-card">
+          <div class="info-row">
+            <span class="info-label">👤 Tác giả (Auth):</span>
+            <strong class="info-value">linhlvtn@gmail.com</strong>
+          </div>
+          <div class="info-row">
+            <span class="info-label">🚀 Phiên bản (Version):</span>
+            <strong class="info-value">1.0</strong>
+          </div>
+          <div class="info-row">
+            <span class="info-label">📅 Cập nhật mới (Update):</span>
+            <strong class="info-value">04/08/2026</strong>
+          </div>
+        </div>
+      </div>
+      <div class="render-settings__foot">
+        <button class="render-panel__btn render-panel__btn--confirm" id="infoModalOkBtn" type="button">Đã hiểu</button>
       </div>
     </div>
   </div>

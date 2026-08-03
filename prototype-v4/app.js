@@ -689,5 +689,14 @@ els.renderOpenBtn.addEventListener("click", () => {
   }
 });
 
+if (els.infoBtn) {
+  els.infoBtn.addEventListener("click", () => {
+    els.infoModal.hidden = false;
+  });
+}
+if (els.infoModalClose) els.infoModalClose.addEventListener("click", () => { els.infoModal.hidden = true; });
+if (els.infoModalOkBtn) els.infoModalOkBtn.addEventListener("click", () => { els.infoModal.hidden = true; });
+if (els.infoModalBackdrop) els.infoModalBackdrop.addEventListener("click", () => { els.infoModal.hidden = true; });
+
 initActorPreviews();
 render();
