@@ -468,21 +468,23 @@ function escapeXml(value) {
 
 function ensureTTSEnvironment() {
   const ttsDir = path.join(root, "local-tts", "VieNeu-TTS");
-  if (!fs.existsSync(ttsDir)) {
-    console.error(`[render] ERROR: VieNeu-TTS directory not found at ${ttsDir}`);
-    process.exit(1);
+  const pyprojectPath = path.join(ttsDir, "pyproject.toml");
+
+  if (!fs.existsSync(pyprojectPath)) {
+    console.log("[render] VieNeu-TTS files missing. Running setup-binaries.js...");
+    run("node", [path.join(root, "setup-binaries.js")], root);
   }
 
   const uvLocalPath = path.join(root, "bin", process.platform === "win32" ? "uv.exe" : "uv");
   if (!fs.existsSync(uvLocalPath)) {
-    console.log("[render] uv binary missing. Running setup-binaries.js automatically...");
+    console.log("[render] uv binary missing. Running setup-binaries.js...");
     run("node", [path.join(root, "setup-binaries.js")], root);
   }
 
   const activeUvBin = fs.existsSync(uvLocalPath) ? uvLocalPath : "uv";
 
   console.log("[render] Checking VieNeu-TTS Python environment...");
-  const checkResult = spawnSync(activeUvBin, ["run", "python", "-c", "import vieneu"], {
+  const checkResult = spawnSync(activeUvBin, ["run", "--project", ttsDir, "python", "-c", "import vieneu"], {
     cwd: ttsDir,
     env: { ...process.env, PYTHONIOENCODING: "utf-8" },
     shell: false
@@ -490,7 +492,7 @@ function ensureTTSEnvironment() {
 
   if (checkResult.status !== 0) {
     console.log("[render] VieNeu-TTS module missing in Python venv. Auto-installing now...");
-    const syncResult = spawnSync(activeUvBin, ["sync", "--no-group", "dev", "--no-group", "gpu"], {
+    const syncResult = spawnSync(activeUvBin, ["sync", "--project", ttsDir, "--directory", ttsDir, "--no-group", "dev", "--no-group", "gpu"], {
       cwd: ttsDir,
       stdio: "inherit",
       env: { ...process.env }

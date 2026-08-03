@@ -128,16 +128,27 @@ async function setupUv() {
 
 function setupTTS(uvBinPath) {
   const ttsDir = path.join(ROOT, "local-tts", "VieNeu-TTS");
+  const pyprojectPath = path.join(ttsDir, "pyproject.toml");
 
-  if (!fs.existsSync(ttsDir)) {
-    console.warn(`[2/2] VieNeu-TTS directory not found at ${ttsDir}. Skipping TTS setup.`);
-    return;
+  if (!fs.existsSync(pyprojectPath)) {
+    console.log("  [!] VieNeu-TTS submodule files missing. Attempting git submodule init...");
+    try {
+      execSync("git submodule update --init --recursive", { cwd: ROOT, stdio: "inherit" });
+    } catch (err) {
+      console.warn("  Could not auto-run git submodule:", err.message);
+    }
+  }
+
+  if (!fs.existsSync(pyprojectPath)) {
+    console.error(`  ✗ LỖI: Không tìm thấy file pyproject.toml tại ${pyprojectPath}`);
+    console.error("  Vui lòng đảm bảo thư mục local-tts/VieNeu-TTS chứa đầy đủ mã nguồn.");
+    process.exit(1);
   }
 
   console.log("[2/2] Setting up Python TTS environment (VieNeu-TTS)...");
   console.log("  This may take a few minutes on first run.");
 
-  const result = spawnSync(uvBinPath, ["sync", "--no-group", "dev", "--no-group", "gpu"], {
+  const result = spawnSync(uvBinPath, ["sync", "--project", ttsDir, "--directory", ttsDir, "--no-group", "dev", "--no-group", "gpu"], {
     cwd: ttsDir,
     stdio: "inherit",
     env: { ...process.env }
