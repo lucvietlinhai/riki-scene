@@ -1,0 +1,15 @@
+{
+  "defaultVoice": {
+    "name": "Giong Adam",
+    "voiceId": "voice51:0",
+    "language": "vi",
+    "gender": "male",
+    "modelId": "lingual_speech_v2",
+    "config": {
+      "speed": 1,
+      "volume": 1,
+      "pitch": 1,
+      "export_srt": false
+    }
+  }
+}

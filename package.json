@@ -1,0 +1,12 @@
+{
+  "name": "riki-scene",
+  "version": "1.0.0",
+  "description": "Riki Scene — xưởng kết xuất giọng đọc local",
+  "main": "electron-main.js",
+  "scripts": {
+    "start": "electron ."
+  },
+  "devDependencies": {
+    "electron": "^31.0.0"
+  }
+}

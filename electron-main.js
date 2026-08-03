@@ -1,0 +1,170 @@
+const { app, BrowserWindow, ipcMain, shell, dialog } = require("electron");
+const path = require("path");
+const { spawn } = require("child_process");
+const fs = require("fs");
+const os = require("os");
+
+const ROOT = path.resolve(__dirname);
+const OUTPUT_DIR = path.join(ROOT, "output");
+
+let mainWindow = null;
+let activeRender = null;
+
+function createWindow() {
+  mainWindow = new BrowserWindow({
+    width: 1600,
+    height: 960,
+    minWidth: 900,
+    minHeight: 600,
+    title: "Riki Scene — xưởng giọng đọc local",
+    backgroundColor: "#f7f5ef",
+    webPreferences: {
+      preload: path.join(ROOT, "preload.js"),
+      contextIsolation: true,
+      nodeIntegration: false,
+    },
+  });
+
+  mainWindow.loadFile(path.join(ROOT, "prototype-v4", "index.html"));
+  mainWindow.on("closed", () => { mainWindow = null; });
+}
+
+app.whenReady().then(() => {
+  createWindow();
+  app.on("activate", () => { if (!mainWindow) createWindow(); });
+});
+
+app.on("window-all-closed", () => {
+  if (process.platform !== "darwin") app.quit();
+});
+
+ipcMain.handle("dialog:show-save", async (_event, options) => {
+  const result = await dialog.showSaveDialog(mainWindow, {
+    title: options.title || "Lưu video",
+    defaultPath: options.defaultPath || path.join(OUTPUT_DIR, "riki-scene-output.mp4"),
+    filters: options.filters || [{ name: "MP4 Video", extensions: ["mp4"] }],
+  });
+  return result;
+});
+
+ipcMain.on("render:start", (event, config) => {
+  if (activeRender) {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send("render:log", { type: "warn", text: "Đang có tiến trình render. Vui lòng chờ." });
+    }
+    return;
+  }
+
+  const configPath = path.join(os.tmpdir(), `riki-config-${Date.now()}.json`);
+  const outputFile = config.outputPath || path.join(OUTPUT_DIR, `${config.videoName || "riki-scene-output"}.mp4`);
+
+  const manifest = {
+    settings: { width: 1080, height: 1920, fps: 24, format: "9:16" },
+    title: `${config.leftTerm} và ${config.rightTerm}`,
+    leftTerm: config.leftTerm || "Trái",
+    rightTerm: config.rightTerm || "Phải",
+    leftColor: config.leftColor || "#b92c1e",
+    rightColor: config.rightColor || "#5d9a4d",
+    leftImage: config.leftImage || "",
+    rightImage: config.rightImage || "",
+    voice: config.voice || "Minh Đức",
+    style: config.style || "tin_tuc",
+    highlight: config.highlight || "word",
+    outputPath: outputFile,
+    videoBg: config.videoBg || "#ffffff",
+    actorImages: config.actorImages || {},
+    scenes: (config.scenes || []).map((item, i) => ({
+      id: `scene-${i + 1}`,
+      text: item.text,
+      pose: item.pose || "point-left",
+    })),
+  };
+
+  try {
+    fs.mkdirSync(path.dirname(outputFile), { recursive: true });
+  } catch {}
+  fs.writeFileSync(configPath, JSON.stringify(manifest, null, 2), "utf8");
+
+  const rendererScript = path.join(ROOT, "renderer", "render-vieneu-highlight.js");
+
+  const send = (type, text) => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send("render:log", { type, text });
+    }
+  };
+
+  const sendProgress = (pct) => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send("render:progress", pct);
+    }
+  };
+
+  send("info", `Bắt đầu render: ${manifest.scenes.length} cảnh · ${manifest.voice} · ${manifest.style}`);
+  send("info", `Output: ${outputFile}`);
+
+  const child = spawn("node", [rendererScript, "--config", configPath], {
+    cwd: ROOT,
+    env: { ...process.env, PYTHONIOENCODING: "utf-8" },
+    shell: false,
+  });
+
+  activeRender = child;
+
+  const progressRegex = /\[PROGRESS:(\d+)\]/;
+
+  child.stdout.on("data", (data) => {
+    data.toString().split(/\r?\n/).filter(Boolean).forEach((line) => {
+      const match = line.match(progressRegex);
+      if (match) {
+        sendProgress(parseInt(match[1], 10));
+      } else {
+        send("out", line);
+      }
+    });
+  });
+
+  child.stderr.on("data", (data) => {
+    data.toString().split(/\r?\n/).filter(Boolean).forEach((line) => send("err", line));
+  });
+
+  child.on("close", (code) => {
+    activeRender = null;
+    try { fs.unlinkSync(configPath); } catch {}
+
+    if (code === 0) {
+      sendProgress(100);
+      send("done", outputFile);
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send("render:done", { success: true, outputFile });
+      }
+    } else {
+      send("error", `Render thất bại với exit code ${code}`);
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send("render:done", { success: false, code });
+      }
+    }
+  });
+
+  child.on("error", (err) => {
+    activeRender = null;
+    send("error", `Không thể khởi động renderer: ${err.message}`);
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send("render:done", { success: false, error: err.message });
+    }
+  });
+});
+
+ipcMain.on("render:cancel", () => {
+  if (activeRender) {
+    activeRender.kill("SIGTERM");
+    activeRender = null;
+  }
+});
+
+ipcMain.on("render:open-output", (_event, filePath) => {
+  if (filePath && fs.existsSync(filePath)) {
+    shell.showItemInFolder(filePath);
+  } else {
+    shell.openPath(OUTPUT_DIR);
+  }
+});
