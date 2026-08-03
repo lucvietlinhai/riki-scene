@@ -1,92 +1,137 @@
-# Riki Scene
+# 🎬 Riki Scene — Xưởng Tạo Video Ngắn Tự Động
 
-Ứng dụng desktop tạo video giải nghĩa từ tự động với giọng đọc TTS tiếng Việt.
+**Riki Scene** là ứng dụng Desktop cross-platform (chạy trên cả **Windows** và **macOS**) hỗ trợ biên tập và kết xuất video ngắn dạng dọc (tỷ lệ chuẩn **9:16 - 1080x1920**) dùng cho Tiktok, Shorts, Reels. Ứng dụng tích hợp bộ đọc giọng nói tiếng Việt mượt mà chạy **offline hoàn toàn trên CPU (VieNeu-TTS ONNX)** mà không cần kết nối internet hay GPU đắt tiền.
 
-## 🚀 Khởi chạy nhanh (Click-to-Run)
+---
 
-> Chỉ cần có **Node.js** là đủ — mọi thứ còn lại sẽ được tự động cài đặt.
+## 🛠️ Tài nguyên & Thư viện Sử dụng
 
-| Hệ điều hành | File cần double-click |
-|---|---|
-| **Windows** | `start.bat` |
-| **macOS** | `start.command` *(cần cấp quyền lần đầu — xem bên dưới)* |
+Ứng dụng được thiết kế theo kiến trúc khép kín **All-in-One**, không yêu cầu người dùng phải cài đặt riêng lẻ từng công cụ phụ trợ:
 
-### Windows
-Double-click vào file `start.bat` — cửa sổ terminal sẽ tự chạy từng bước và mở ứng dụng.
+### 1. Khung ứng dụng & Giao diện (Frontend & Desktop App)
+- **[Electron](https://www.electronjs.org/)**: Khung đóng gói ứng dụng Desktop cross-platform.
+- **HTML5 & Vanilla CSS3**: Thiết kế hệ thống theo chuẩn BEM & SCSS Design Tokens (màu sắc HSL, hiệu ứng glassmorphism, responsive).
+- **Vanilla JavaScript (ES6+)**: Xử lý logic giao diện, tương tác chuột (Pointer Events), phát thử âm thanh Web Audio.
 
-### macOS
-Lần đầu tiên, cần cấp quyền thực thi trong Terminal:
-```bash
-chmod +x start.command
+### 2. Bộ máy Thuyết minh Tiếng Việt (TTS Engine)
+- **[VieNeu-TTS](https://github.com/vie-neu/vieneu)**: Mô hình trí tuệ nhân tạo đọc giọng nói Tiếng Việt tự nhiên.
+- **ONNX Runtime (CPU / int8)**: Tối ưu hóa mô hình AI đọc nhanh, tiêu tốn ít tài nguyên CPU.
+- **[uv](https://github.com/astral-sh/uv)**: Trình quản lý môi trường Python siêu nhanh (tự động tích hợp trong thư mục `bin/`).
+
+### 3. Bộ Kết xuất & Xử lý Đồ họa Video (Video Renderer)
+- **[Sharp](https://sharp.pixelplumbing.com/)**: Thư viện xử lý ảnh đồ họa hiệu năng cực cao (ghép nhân vật, ảnh minh họa, vẽ SVG vector frame).
+- **[FFmpeg Static](https://github.com/eugeneware/ffmpeg-static)**: Công cụ ghép nối danh sách ảnh frame (24 FPS) và lồng ghép file âm thanh WAV thành video MP4 hoàn chỉnh.
+
+---
+
+## 📐 Sơ đồ Luồng Hoạt động Vận hành (Operational Flow Diagram)
+
+Dưới đây là sơ đồ luồng dữ liệu từ khi người dùng nhập kịch bản tới khi xuất ra file video `.mp4`:
+
+```mermaid
+flowchart TD
+    A[📄 Người dùng nhập Kịch bản & Cấu hình UI] --> B[🖥️ Electron Main Process]
+    
+    subgraph STAGE1["Giai đoạn 1: Tạo Âm thanh Thuyết minh"]
+        B -->|Gọi Python via uv| C[🔊 vieneu_scene_tts.py]
+        C -->|VieNeu-TTS ONNX| D[🎵 Xuất các file WAV theo từng phân cảnh]
+    end
+    
+    subgraph STAGE2["Giai đoạn 2: Tạo Khung hình Đồ họa (Frames)"]
+        B -->|Gọi Node.js Renderer| E[🎨 render-vieneu-highlight.js]
+        E -->|Tính toán Y & Font Size| F[📐 Tạo SVG Vector Layout]
+        F -->|Sharp Compositing| G[🖼️ Ghép Ảnh minh họa & Nhân vật PNG]
+        G --> H[📁 Lưu chuỗi ảnh Frame 24 FPS vào TMP]
+    end
+
+    subgraph STAGE3["Giai đoạn 3: Đóng gói MP4"]
+        D --> I[🎬 FFmpeg Video & Audio Encoder]
+        H --> I
+        I --> J[🎉 Video hoàn chỉnh tại d:\riki-scene\output\]
+    end
 ```
-Sau đó double-click `start.command` trong Finder để khởi chạy.
 
 ---
 
-## Yêu cầu hệ thống
+## 📂 Cấu trúc Dự án (Project Structure)
 
-| Thành phần | Tối thiểu |
-|-----------|-----------|
-| Node.js | v18 trở lên |
-| npm | v8 trở lên |
-| RAM | 4 GB |
-| Kết nối Internet | Cần thiết khi chạy `npm run setup` lần đầu |
-
-> Node.js tải về tại: https://nodejs.org
+```text
+riki-scene/
+├── bin/                       # Nơi chứa công cụ thực thi uv (Tự động tải về khi setup)
+├── local-tts/
+│   └── VieNeu-TTS/            # Engine VieNeu-TTS ONNX tiếng Việt
+├── prototype-v4/              # Giao diện người dùng (UI Preview, CSS Styles, App Logic)
+│   ├── index.html             # Màn hình chính ứng dụng
+│   ├── styles.css             # Hệ thống CSS Design System
+│   └── app.js                 # Logic biên soạn, preview & tính toán bố cục
+├── renderer/                  # Bộ xử lý đồ họa & render video MP4
+│   ├── render-vieneu-highlight.js # Engine kết xuất khung hình Sharp & FFmpeg
+│   ├── vieneu_scene_tts.py    # Script Python gọi VieNeu-TTS sinh âm thanh
+│   └── preview_voice.py       # Script Python tạo câu chào nghe thử giọng đọc
+├── output/                    # Thư mục mặc định chứa các video .mp4 xuất ra
+├── electron-main.js           # Tiến trình chính Electron (IPC Main Process)
+├── preload.js                 # Cầu nối an toàn IPC Bridge між UI và Node.js
+├── setup-binaries.js          # Script tự động cài đặt uv & môi trường TTS
+├── start.bat                  # File tự động khởi chạy 1-click cho Windows
+├── start.command              # File tự động khởi chạy 1-click cho macOS
+└── package.json               # Khai báo thư viện & các lệnh npm script
+```
 
 ---
 
-## Cài đặt (lần đầu)
+## 💻 Hướng dẫn Cài đặt & Sử dụng
 
-Chạy **3 lệnh** theo thứ tự trong terminal:
+> **Yêu cầu duy nhất**: Máy tính cần cài sẵn **Node.js (v18 trở lên)**.  
+> Tải Node.js tại: [https://nodejs.org](https://nodejs.org)
 
+### 🪟 Dành cho Windows
+
+#### Cách 1: Click-to-Run (Khuyên dùng)
+Double-click (nhấp kép) vào file **`start.bat`** tại thư mục dự án. Cửa sổ terminal sẽ tự động cài đặt thư viện cần thiết ở lần đầu và mở ứng dụng.
+
+#### Cách 2: Chạy bằng Lệnh Terminal
 ```bash
-# 1. Cài đặt Electron, sharp, ffmpeg-static
-npm install
-
-# 2. Tải uv (trình quản lý Python) và cài đặt môi trường TTS
+# 1. Cài đặt các thư viện Node.js & công cụ phụ trợ (Chỉ cần chạy 1 lần đầu)
 npm run setup
 
-# 3. Khởi động ứng dụng
+# 2. Khởi chạy ứng dụng
 npm start
 ```
 
-> **Lưu ý:** `npm run setup` sẽ tải về ~15–30 MB dữ liệu (uv binary + Python + thư viện TTS).  
-> Chỉ cần chạy một lần duy nhất. Lần sau chỉ cần `npm start`.
-
 ---
 
-## Sử dụng
+### 🍎 Dành cho macOS
 
-1. Mở ứng dụng bằng `npm start`.
-2. Nhập nội dung kịch bản vào ô **Script**.
-3. Tải lên ảnh minh họa và ảnh nhân vật (tuỳ chọn).
-4. Chọn giọng đọc và tuỳ chỉnh màu sắc.
-5. Nhấn nút **Xuất video** để render.
+#### Cách 1: Click-to-Run
+1. Lần đầu tiên mở dự án, cần cấp quyền thực thi cho file `start.command` trong Terminal:
+   ```bash
+   chmod +x start.command
+   ```
+2. Sau đó, chỉ cần **Double-click file `start.command`** trong Finder để chạy ứng dụng.
 
----
+#### Cách 2: Chạy bằng Lệnh Terminal
+```bash
+# 1. Cài đặt các thư viện Node.js & môi trường TTS
+npm run setup
 
-## Cấu trúc dự án
-
-```
-riki-scene/
-├── bin/                  # uv binary (tự động tạo khi chạy npm run setup)
-├── local-tts/
-│   └── VieNeu-TTS/       # Engine TTS tiếng Việt (submodule)
-├── prototype-v4/         # Giao diện ứng dụng
-├── renderer/             # Bộ render video (sharp + ffmpeg)
-├── electron-main.js      # Electron main process
-├── setup-binaries.js     # Script cài đặt tự động
-└── package.json
+# 2. Khởi chạy ứng dụng
+npm start
 ```
 
 ---
 
-## Xử lý sự cố
+## ⚡ Các Tính năng Nổi bật Trong Ứng dụng
 
-| Lỗi | Cách khắc phục |
-|-----|----------------|
-| `Cannot find module 'sharp'` | Chạy lại `npm install` |
-| `uv not found` | Chạy lại `npm run setup` |
-| `TTS failed` | Kiểm tra kết nối Internet và chạy lại `npm run setup` |
-| Video render lỗi | Kiểm tra `output/` để xem log |
+1. **Trình biên soạn trực quan**:
+   - Nhập kịch bản (mỗi dòng = 1 cảnh).
+   - Đổi màu từ so sánh vế trái / vế phải, chỉnh phông nền video.
+   - Thêm / Xóa ảnh minh họa linh hoạt cho từng cảnh hoặc toàn bộ video.
+2. **Kích thước chữ & Nhân vật tùy chỉnh linh hoạt**:
+   - Ô tăng/giảm Cỡ chữ thuyết minh (`px`).
+   - Ô tăng/giảm Kích thước nhân vật (`%`).
+3. **Phân cảnh & Nhân vật (Poses)**:
+   - Đặt tư thế cho nhân vật ở từng cảnh (Chỉ trái, Chỉ phải, Đặt câu hỏi, Giải thích, Phân tích, hoặc 🚫 Không dùng nhân vật).
+4. **🔊 Nghe thử Giọng đọc mẫu (Voice Preview)**:
+   - Nghe thử trực tiếp câu chào từ giọng đọc (Minh Đức, Phạm Tuyên, Trúc Ly, Ngọc Linh...) và phong cách (Tin tức, Tự nhiên, Đọc truyện) trước khi bấm tạo video.
+5. **Xem trước 1:1 Chuẩn Video MP4**:
+   - Khung xem trước điện thoại mô phỏng chính xác 100% tỷ lệ bố cục và vị trí hiển thị video xuất ra tại `d:\riki-scene\output\`.

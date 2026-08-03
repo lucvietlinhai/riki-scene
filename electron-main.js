@@ -47,11 +47,36 @@ ipcMain.handle("dialog:show-save", async (_event, options) => {
   return result;
 });
 
+function ensureTTSEnvironment() {
+  const ttsDir = path.join(ROOT, "local-tts", "VieNeu-TTS");
+  const uvBin = path.join(ROOT, "bin", process.platform === "win32" ? "uv.exe" : "uv");
+
+  if (!fs.existsSync(uvBin) || !fs.existsSync(path.join(ttsDir, ".venv"))) {
+    console.log("[Electron] Auto-installing VieNeu-TTS environment...");
+    const setupScript = path.join(ROOT, "setup-binaries.js");
+    spawnSync("node", [setupScript], { cwd: ROOT, stdio: "inherit" });
+  } else {
+    const check = spawnSync(uvBin, ["run", "python", "-c", "import vieneu"], {
+      cwd: ttsDir,
+      env: { ...process.env, PYTHONIOENCODING: "utf-8" },
+      shell: false
+    });
+    if (check.status !== 0) {
+      console.log("[Electron] vieneu module missing in Python venv. Auto-syncing...");
+      spawnSync(uvBin, ["sync", "--no-group", "dev", "--no-group", "gpu"], {
+        cwd: ttsDir,
+        stdio: "inherit",
+        env: { ...process.env }
+      });
+    }
+  }
+  return fs.existsSync(uvBin) ? uvBin : "uv";
+}
+
 ipcMain.handle("voice:preview", async (_event, { voice, style, text }) => {
   const sampleText = text || `Xin chào, đây là giọng đọc ${voice}, chúc bạn tạo ra những video tuyệt vời!`;
   const outWav = path.join(os.tmpdir(), `voice-preview-${Date.now()}.wav`);
-  const uvBin = path.join(ROOT, "bin", process.platform === "win32" ? "uv.exe" : "uv");
-  const uvCmd = fs.existsSync(uvBin) ? uvBin : "uv";
+  const uvCmd = ensureTTSEnvironment();
 
   return new Promise((resolve, reject) => {
     const child = spawn(uvCmd, [
