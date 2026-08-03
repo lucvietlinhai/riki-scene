@@ -1,6 +1,6 @@
 const { app, BrowserWindow, ipcMain, shell, dialog } = require("electron");
 const path = require("path");
-const { spawn } = require("child_process");
+const { spawn, spawnSync } = require("child_process");
 const fs = require("fs");
 const os = require("os");
 
