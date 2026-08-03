@@ -13,6 +13,9 @@ contextBridge.exposeInMainWorld("electronAPI", {
   async showSaveDialog(options) {
     return ipcRenderer.invoke("dialog:show-save", options);
   },
+  async previewVoice(data) {
+    return ipcRenderer.invoke("voice:preview", data);
+  },
   onLog(callback) {
     ipcRenderer.on("render:log", (_event, data) => callback(data));
   },

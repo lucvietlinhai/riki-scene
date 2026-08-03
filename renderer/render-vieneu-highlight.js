@@ -1,8 +1,14 @@
 const fs = require("fs");
 const path = require("path");
 const { spawnSync } = require("child_process");
+const sharp = require("sharp");
+const ffmpegPath = (() => { try { return require("ffmpeg-static"); } catch { return "ffmpeg"; } })();
 
 const root = path.resolve(__dirname, "..");
+const uvBin = (() => {
+  const local = path.join(root, "bin", process.platform === "win32" ? "uv.exe" : "uv");
+  return fs.existsSync(local) ? local : "uv";
+})();
 const workDir = path.join(root, "output", "vieneu-highlight");
 const frameDir = path.join(workDir, "svg-frames");
 const pngDir = path.join(workDir, "png-frames");
@@ -57,9 +63,9 @@ if (cliArgs.config && fs.existsSync(cliArgs.config)) {
   };
 }
 
-main();
+(async () => { await main(); })();
 
-function main() {
+async function main() {
   const output = manifest.outputPath || path.join(root, "output", "riki-scene-vieneu-highlight.mp4");
 
   resetDir(workDir);
@@ -114,7 +120,7 @@ function main() {
   console.log(`[render] Voice: ${voice} · Style: ${style} · Scenes: ${manifest.scenes.length}`);
   console.log("[PROGRESS:5]");
 
-  run("uv", [
+  run(uvBin, [
     "run",
     "python",
     path.join(root, "renderer", "vieneu_scene_tts.py"),
@@ -130,32 +136,10 @@ function main() {
   writeCombinedAudio(tts.items);
   console.log("[PROGRESS:50]");
 
-  writeFrames(tts.items, actorFilePaths, imagePaths);
-  console.log("[PROGRESS:65]");
-
-  run("magick", [
-    "mogrify",
-    "-format", "png",
-    "-path", pngDir,
-    path.join(frameDir, "frame-*.svg")
-  ], root);
-
-  if (Object.keys(actorFilePaths).length > 0) {
-    console.log("[render] Compositing custom actor images via Python PIL...");
-    run("uv", [
-      "run",
-      "python",
-      path.join(root, "renderer", "composite_actor.py"),
-      "--manifest", manifestPath,
-      "--png-dir", pngDir,
-      "--audio-json", path.join(audioDir, "tts-scenes.json"),
-      "--actor-files", JSON.stringify(actorFilePaths)
-    ], path.join(root, "local-tts", "VieNeu-TTS"), { PYTHONIOENCODING: "utf-8" });
-  }
-
+  await writeFrames(tts.items, actorFilePaths, imagePaths);
   console.log("[PROGRESS:82]");
 
-  run("ffmpeg", [
+  run(ffmpegPath, [
     "-y",
     "-framerate", String(fps),
     "-i", path.join(pngDir, "frame-%05d.png"),
@@ -193,9 +177,9 @@ function main() {
 }
 
 function writeCombinedAudio(items) {
-  const lines = items.map((item) => `file '${item.wav.replace(/\\/g, "/")}'`);
+  const lines = items.map((item) => `file '${item.wav.replace(/\\/g, "/")}' `);
   fs.writeFileSync(audioListPath, lines.join("\n"), "utf8");
-  run("ffmpeg", [
+  run(ffmpegPath, [
     "-y",
     "-f", "concat",
     "-safe", "0",
@@ -205,25 +189,122 @@ function writeCombinedAudio(items) {
   ], root);
 }
 
-function writeFrames(items, actorFilePaths, imagePaths) {
+async function writeFrames(items, actorFilePaths, imagePaths) {
+  const TARGET_W = 480;
+  const TARGET_H = 680;
+  const loadedActors = {};
+
+  for (const [pose, fpath] of Object.entries(actorFilePaths)) {
+    if (fpath && fs.existsSync(fpath)) {
+      try {
+        const meta = await sharp(fpath).metadata();
+        const scale = Math.min(TARGET_W / meta.width, TARGET_H / meta.height);
+        const newW = Math.max(1, Math.round(meta.width * scale));
+        const newH = Math.max(1, Math.round(meta.height * scale));
+        const offsetX = Math.round((TARGET_W - newW) / 2);
+        const offsetY = TARGET_H - newH;
+        const resizedBuf = await sharp(fpath).resize(newW, newH).png().toBuffer();
+        const canvasBuf = await sharp({
+          create: { width: TARGET_W, height: TARGET_H, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } }
+        }).composite([{ input: resizedBuf, left: offsetX, top: offsetY }]).png().toBuffer();
+        loadedActors[pose] = canvasBuf;
+        console.log(`[render] Loaded custom actor for pose '${pose}'`);
+      } catch (err) {
+        console.error(`[render] Error loading actor '${fpath}': ${err.message}`);
+      }
+    }
+  }
+
   let frameNo = 1;
-  for (let sceneIndex = 0; sceneIndex < items.length; sceneIndex += 1) {
-    const item = items[sceneIndex];
-    const scene = manifest.scenes[sceneIndex];
+  for (let sceneIdx = 0; sceneIdx < items.length; sceneIdx += 1) {
+    const item = items[sceneIdx];
+    const scene = manifest.scenes[sceneIdx];
     const count = Math.max(1, Math.round(item.duration * fps));
+    const hasActor = scene.pose && scene.pose !== "none";
+    const actorCanvas = hasActor ? (loadedActors[scene.pose] || null) : null;
+
     for (let i = 0; i < count; i += 1) {
       const progress = i / Math.max(1, count - 1);
-      const svg = makeFrame(scene, sceneIndex, progress, items.length, item.duration, actorFilePaths, imagePaths);
-      fs.writeFileSync(path.join(frameDir, `frame-${String(frameNo).padStart(5, "0")}.svg`), svg, "utf8");
+      const svgString = makeFrame(scene, sceneIdx, progress, items.length, item.duration, actorFilePaths, imagePaths);
+      const pngPath = path.join(pngDir, `frame-${String(frameNo).padStart(5, "0")}.png`);
+
+      const composites = [];
+      if (actorCanvas) {
+        const actorScalePct = scene.actorScale || manifest.actorScale || 100;
+        const userScale = actorScalePct / 100;
+        const targetW = Math.max(80, Math.round(480 * userScale));
+        const targetH = Math.max(100, Math.round(680 * userScale));
+
+        const resizedActor = await sharp(actorCanvas)
+          .resize(targetW, targetH, { fit: "contain", background: { r: 0, g: 0, b: 0, alpha: 0 } })
+          .toBuffer();
+
+        const bobbing = Math.sin(progress * Math.PI) * -16;
+        const targetLeft = Math.round(540 - targetW / 2);
+        const targetTop = Math.max(0, Math.round(1920 - targetH - 20 + bobbing));
+
+        composites.push({ input: resizedActor, left: targetLeft, top: targetTop });
+      }
+
+      await sharp(Buffer.from(svgString))
+        .composite(composites)
+        .png({ compressionLevel: 1, adaptiveFiltering: false })
+        .toFile(pngPath);
+
       frameNo += 1;
     }
+
+    const pct = Math.round(55 + ((sceneIdx + 1) / items.length) * 25);
+    console.log(`[PROGRESS:${pct}]`);
   }
 }
 
 function makeFrame(scene, sceneIndex, progress, totalScenes, duration, actorFilePaths, imagePaths) {
   const activeWord = activeWordIndex(scene.text, progress);
-  const photoShift = Math.round(Math.sin(progress * Math.PI) * 18);
   const videoBg = manifest.videoBg || "#ffffff";
+  const leftTerm = scene.leftTerm || manifest.leftTerm || "Trái";
+  const rightTerm = scene.rightTerm || manifest.rightTerm || "Phải";
+  const sceneImagePaths = {
+    left: scene.leftImage || (imagePaths && imagePaths.left) || "",
+    right: scene.rightImage || (imagePaths && imagePaths.right) || ""
+  };
+  const hasImages = Boolean(sceneImagePaths.left || sceneImagePaths.right);
+  const hasActor = Boolean(scene.pose && scene.pose !== "none");
+
+  const userFontSize = manifest.fontSize || 40;
+  let termsY = 382;
+  let termFontSize = 56;
+  let highlightY = 900;
+  let highlightWidth = 730;
+  let highlightFontSize = userFontSize;
+
+  if (hasImages && hasActor) {
+    termsY = 382;
+    highlightY = 900;
+  } else if (!hasImages && hasActor) {
+    termsY = 480;
+    termFontSize = 64;
+    highlightY = 880;
+    highlightFontSize = Math.round(userFontSize * 1.15);
+  } else if (hasImages && !hasActor) {
+    termsY = 400;
+    highlightY = 1040;
+    highlightFontSize = Math.round(userFontSize * 1.15);
+  } else {
+    termsY = 620;
+    termFontSize = 72;
+    highlightY = 1000;
+    highlightWidth = 820;
+    highlightFontSize = Math.round(userFontSize * 1.3);
+  }
+
+  const illustrationMarkup = hasImages ? `
+    ${leftIllustration(sceneImagePaths)}
+    ${rightIllustration(sceneImagePaths)}
+  ` : "";
+
+  const actorMarkup = hasActor ? actor(scene.pose, 540, 1380 + Math.sin(progress * Math.PI) * -16, actorFilePaths) : "";
+
   return `<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
   <defs>
@@ -232,62 +313,43 @@ function makeFrame(scene, sceneIndex, progress, totalScenes, duration, actorFile
   </defs>
   <rect width="${width}" height="${height}" fill="${videoBg}"/>
 
-  <text x="300" y="382" text-anchor="middle" font-family="${fontFamily}" font-size="56" font-weight="900" fill="${manifest.leftColor}">${escapeXml(manifest.leftTerm)}</text>
-  <text x="780" y="382" text-anchor="middle" font-family="${fontFamily}" font-size="56" font-weight="900" fill="${manifest.rightColor}">${escapeXml(manifest.rightTerm)}</text>
+  <text x="300" y="${termsY}" text-anchor="middle" font-family="${fontFamily}" font-size="${termFontSize}" font-weight="900" fill="${manifest.leftColor}">${escapeXml(leftTerm)}</text>
+  <text x="780" y="${termsY}" text-anchor="middle" font-family="${fontFamily}" font-size="${termFontSize}" font-weight="900" fill="${manifest.rightColor}">${escapeXml(rightTerm)}</text>
 
-  ${leftIllustration(photoShift, imagePaths)}
-  ${rightIllustration(-photoShift, imagePaths)}
+  ${illustrationMarkup}
 
-  ${highlightText(scene.text, activeWord, 175, 900, 730, 54)}
+  ${highlightText(scene.text, activeWord, 175, highlightY, highlightWidth, 54, highlightFontSize)}
 
-  ${actor(scene.pose, 540, 1380 + Math.sin(progress * Math.PI) * -16, actorFilePaths)}
+  ${actorMarkup}
 </svg>`;
 }
 
-function leftIllustration(offset, imagePaths) {
+function leftIllustration(imagePaths) {
   if (imagePaths && imagePaths.left) {
-    return `<g clip-path="url(#leftClip)" transform="translate(${offset} 0)">
+    return `<g clip-path="url(#leftClip)">
     <rect x="120" y="410" width="410" height="300" rx="22" fill="#dde8ef"/>
     <image x="120" y="410" width="410" height="300" xlink:href="${imagePaths.left}" preserveAspectRatio="xMidYMid slice"/>
   </g>`;
   }
-  return `<g clip-path="url(#leftClip)" transform="translate(${offset} 0)">
-    <rect x="120" y="410" width="410" height="300" rx="22" fill="#b9d7ea"/>
-    <circle cx="318" cy="525" r="76" fill="#ffffff" opacity=".78"/>
-    <circle cx="318" cy="502" r="28" fill="#347a99"/>
-    <path d="M260 590c18-47 96-47 116 0" fill="#347a99"/>
-    <path d="M160 674c88-112 155-184 262-230" stroke="#202525" stroke-width="18" stroke-linecap="round" opacity=".25"/>
-    <circle cx="448" cy="466" r="18" fill="#fff" opacity=".65"/>
-    <circle cx="492" cy="606" r="12" fill="#fff" opacity=".58"/>
-  </g>`;
+  return "";
 }
 
-function rightIllustration(offset, imagePaths) {
+function rightIllustration(imagePaths) {
   if (imagePaths && imagePaths.right) {
-    return `<g clip-path="url(#rightClip)" transform="translate(${offset} 0)">
+    return `<g clip-path="url(#rightClip)">
     <rect x="550" y="410" width="410" height="300" rx="22" fill="#d5e8d0"/>
     <image x="550" y="410" width="410" height="300" xlink:href="${imagePaths.right}" preserveAspectRatio="xMidYMid slice"/>
   </g>`;
   }
-  return `<g clip-path="url(#rightClip)" transform="translate(${offset} 0)">
-    <rect x="550" y="410" width="410" height="300" rx="22" fill="#cfe0c8"/>
-    <circle cx="670" cy="500" r="54" fill="#fff"/>
-    <circle cx="842" cy="500" r="54" fill="#fff"/>
-    <text x="650" y="522" font-family="${fontFamily}" font-size="82" font-weight="800" fill="#b64020">6</text>
-    <text x="822" y="522" font-family="${fontFamily}" font-size="82" font-weight="800" fill="#b64020">9</text>
-    <rect x="608" y="594" width="82" height="88" rx="18" fill="#202525"/>
-    <circle cx="649" cy="568" r="30" fill="#f1bd78"/>
-    <rect x="816" y="594" width="82" height="88" rx="18" fill="#202525"/>
-    <circle cx="857" cy="568" r="30" fill="#f1bd78"/>
-    <rect x="705" y="660" width="96" height="28" rx="14" fill="#ea622f"/>
-  </g>`;
+  return "";
 }
 
-function highlightText(text, activeIndex, x, y, maxWidth, lineHeight) {
+function highlightText(text, activeIndex, x, y, maxWidth, lineHeight, customFontSize) {
   const normalized = text.normalize("NFC");
   const words = normalized.split(/\s+/).filter(Boolean);
-  const fontSize = 40;
-  const activeFontSize = 44;
+  const fontSize = customFontSize || manifest.fontSize || 40;
+  const activeFontSize = Math.round(fontSize * 1.1);
+  const effectiveLineHeight = Math.max(lineHeight || 54, Math.round(fontSize * 1.35));
   const lines = layoutWords(words, maxWidth, fontSize);
   let wordIndex = 0;
   const chunks = [];
@@ -296,7 +358,7 @@ function highlightText(text, activeIndex, x, y, maxWidth, lineHeight) {
     for (const word of lines[lineIndex].words) {
       const current = wordIndex === activeIndex;
       const fill = current ? "#3ac6c6" : "#202525";
-      chunks.push(`<text x="${cursor}" y="${y + lineIndex * lineHeight}" font-family="${fontFamily}" font-size="${current ? activeFontSize : fontSize}" font-weight="${current ? 900 : 700}" fill="${fill}">${escapeXml(word.text)}</text>`);
+      chunks.push(`<text x="${cursor}" y="${y + lineIndex * effectiveLineHeight}" font-family="${fontFamily}" font-size="${current ? activeFontSize : fontSize}" font-weight="${current ? 900 : 700}" fill="${fill}">${escapeXml(word.text)}</text>`);
       const actualWordWidth = estimateWidth(word.text, current ? activeFontSize : fontSize);
       cursor += actualWordWidth + 18;
       wordIndex += 1;
@@ -369,7 +431,8 @@ function actor(pose, x, y, actorFilePaths) {
   };
   const leftArm = leftArmAngles[pose] !== undefined ? leftArmAngles[pose] : 26;
   const rightArm = rightArmAngles[pose] !== undefined ? rightArmAngles[pose] : -30;
-  const scale = 1.85;
+  const userScale = (manifest.actorScale || 100) / 100;
+  const scale = 1.85 * userScale;
   return `<g transform="translate(${x} ${y}) scale(${scale})">
     <circle cx="0" cy="0" r="58" fill="#f1bd78" stroke="#202525" stroke-width="6"/>
     <circle cx="-19" cy="-3" r="6" fill="#202525"/><circle cx="19" cy="-3" r="6" fill="#202525"/>

@@ -47,6 +47,47 @@ ipcMain.handle("dialog:show-save", async (_event, options) => {
   return result;
 });
 
+ipcMain.handle("voice:preview", async (_event, { voice, style, text }) => {
+  const sampleText = text || `Xin chào, đây là giọng đọc ${voice}, chúc bạn tạo ra những video tuyệt vời!`;
+  const outWav = path.join(os.tmpdir(), `voice-preview-${Date.now()}.wav`);
+  const uvBin = path.join(ROOT, "bin", process.platform === "win32" ? "uv.exe" : "uv");
+  const uvCmd = fs.existsSync(uvBin) ? uvBin : "uv";
+
+  return new Promise((resolve, reject) => {
+    const child = spawn(uvCmd, [
+      "run",
+      "python",
+      path.join(ROOT, "renderer", "preview_voice.py"),
+      "--voice", voice || "Minh Đức",
+      "--style", style || "tin_tuc",
+      "--text", sampleText,
+      "--out-wav", outWav
+    ], {
+      cwd: path.join(ROOT, "local-tts", "VieNeu-TTS"),
+      env: { ...process.env, PYTHONIOENCODING: "utf-8" }
+    });
+
+    child.on("close", (code) => {
+      if (code === 0 && fs.existsSync(outWav)) {
+        try {
+          const buffer = fs.readFileSync(outWav);
+          const base64 = buffer.toString("base64");
+          try { fs.unlinkSync(outWav); } catch {}
+          resolve({ success: true, audio: `data:audio/wav;base64,${base64}` });
+        } catch (err) {
+          resolve({ success: false, error: err.message });
+        }
+      } else {
+        resolve({ success: false, error: `Process exited with code ${code}` });
+      }
+    });
+
+    child.on("error", (err) => {
+      resolve({ success: false, error: err.message });
+    });
+  });
+});
+
 ipcMain.on("render:start", (event, config) => {
   if (activeRender) {
     if (mainWindow && !mainWindow.isDestroyed()) {
@@ -70,6 +111,8 @@ ipcMain.on("render:start", (event, config) => {
     voice: config.voice || "Minh Đức",
     style: config.style || "tin_tuc",
     highlight: config.highlight || "word",
+    fontSize: config.fontSize || 40,
+    actorScale: config.actorScale || 100,
     outputPath: outputFile,
     videoBg: config.videoBg || "#ffffff",
     actorImages: config.actorImages || {},
@@ -77,6 +120,10 @@ ipcMain.on("render:start", (event, config) => {
       id: `scene-${i + 1}`,
       text: item.text,
       pose: item.pose || "point-left",
+      leftTerm: item.leftTerm || config.leftTerm || "Trái",
+      rightTerm: item.rightTerm || config.rightTerm || "Phải",
+      leftImage: item.leftImage || config.leftImage || "",
+      rightImage: item.rightImage || config.rightImage || "",
     })),
   };
 

@@ -1,325 +1,431 @@
 <!doctype html>
 <html lang="vi">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Riki Scene - Kết xuất giọng đọc local</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="./styles.css" />
-  </head>
-  <body>
-    <header class="topbar">
-      <div class="brand">
-        <span class="brand__logo">R</span>
-        <strong class="brand__name">riki.scene</strong>
-      </div>
-      <div class="topbar__center">
-        <span class="topbar__badge">VieNeu TTS</span>
-        <span class="topbar__badge topbar__badge--green">Local · Offline</span>
-      </div>
-      <button class="btn-render" id="renderButton" type="button">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-        Kết xuất MP4
-      </button>
-    </header>
 
-    <main class="layout">
-      <section class="preview">
-        <div class="preview__header">
-          <span class="preview__label">Xem trước</span>
-          <div class="scene-nav">
-            <button id="prevScene" type="button" title="Cảnh trước">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
-            </button>
-            <strong><span id="sceneNow">1</span><span class="scene-nav__sep">/</span><span id="sceneTotal">1</span></strong>
-            <button id="nextScene" type="button" title="Cảnh tiếp">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
-            </button>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Riki Scene - Kết xuất giọng đọc local</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap"
+    rel="stylesheet" />
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand__logo">R</span>
+      <strong class="brand__name">riki.scene</strong>
+    </div>
+    <button class="btn-render" id="renderButton" type="button">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+        stroke-linecap="round" stroke-linejoin="round">
+        <polygon points="5 3 19 12 5 21 5 3" />
+      </svg>
+      Bắt đầu tạo video
+    </button>
+  </header>
+
+  <main class="layout">
+    <section class="preview">
+      <div class="preview__header">
+        <span class="preview__label">Xem trước</span>
+        <div class="scene-nav">
+          <button id="prevScene" type="button" title="Cảnh trước">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+              stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="15 18 9 12 15 6" />
+            </svg>
+          </button>
+          <strong><span id="sceneNow">1</span><span class="scene-nav__sep">/</span><span
+              id="sceneTotal">1</span></strong>
+          <button id="nextScene" type="button" title="Cảnh tiếp">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+              stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="9 18 15 12 9 6" />
+            </svg>
+          </button>
+        </div>
+      </div>
+      <article class="phone">
+        <div class="card">
+          <div class="hero-title">
+            <h2 id="leftTitle">Khách quan</h2>
+            <h2 id="rightTitle">Chủ quan</h2>
+          </div>
+          <div class="images">
+            <img id="leftImage" alt="Ảnh so sánh trái" />
+            <img id="rightImage" alt="Ảnh so sánh phải" />
+          </div>
+          <div class="read-box">
+            <p id="highlightText"></p>
+            <div class="actor" id="actor" aria-hidden="true">
+              <b id="poseName">chỉ trái</b>
+              <img id="actorCustomImg" class="actor__custom-img" alt="" />
+              <i class="head"></i><i class="body"></i><i class="arm left"></i><i class="arm right"></i><i
+                class="leg one"></i><i class="leg two"></i>
+            </div>
           </div>
         </div>
-        <article class="phone">
-          <div class="card">
-            <div class="hero-title">
-              <h2 id="leftTitle">Khách quan</h2>
-              <h2 id="rightTitle">Chủ quan</h2>
+      </article>
+      <div class="player">
+        <button class="btn-play" id="playButton" type="button">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+            <polygon points="5 3 19 12 5 21 5 3" />
+          </svg>
+          Phát thử
+        </button>
+        <time id="timeReadout" class="player__time">00:00</time>
+      </div>
+    </section>
+
+    <section class="editor">
+      <nav class="tabs">
+        <button class="tab active" data-panel="contentPanel" type="button">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="3" width="18" height="18" rx="2" />
+            <path d="M3 9h18M9 21V9" />
+          </svg>
+          Trình biên soạn
+        </button>
+        <button class="tab" data-panel="voicePanel" type="button">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
+            <path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v4M8 23h8" />
+          </svg>
+          Thuyết minh
+        </button>
+        <button class="tab" data-panel="scenePanel" type="button">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <line x1="8" y1="6" x2="21" y2="6" />
+            <line x1="8" y1="12" x2="21" y2="12" />
+            <line x1="8" y1="18" x2="21" y2="18" />
+            <line x1="3" y1="6" x2="3.01" y2="6" />
+            <line x1="3" y1="12" x2="3.01" y2="12" />
+            <line x1="3" y1="18" x2="3.01" y2="18" />
+          </svg>
+          Phân cảnh &amp; Nhân vật
+        </button>
+        <button class="tab" data-panel="actorPanel" type="button">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+            <circle cx="12" cy="7" r="4" />
+          </svg>
+          Cài đặt nhân vật
+        </button>
+      </nav>
+
+      <div class="panel active" id="contentPanel">
+        <div class="panel__section">
+          <div class="scope-header">
+            <span class="scope-header__label">Đang chỉnh sửa cho:</span>
+            <div id="scopeNav" class="scope-nav"></div>
+          </div>
+          <div id="sceneOverrideBar" class="scene-override-bar" hidden>
+            <span id="sceneOverrideStatus">Đang dùng ảnh &amp; từ mặc định</span>
+            <div class="scene-override-bar__actions">
+              <button id="enableOverrideBtn" type="button" class="btn-ghost btn-ghost--sm">Tùy chỉnh riêng cho cảnh
+                này</button>
+              <button id="resetOverrideBtn" type="button" class="btn-ghost btn-ghost--sm btn-ghost--danger" hidden>Khôi
+                phục mặc định</button>
             </div>
-            <div class="images">
-              <img id="leftImage" alt="Ảnh so sánh trái" />
-              <img id="rightImage" alt="Ảnh so sánh phải" />
-            </div>
-            <div class="read-box">
-              <p id="highlightText"></p>
-              <div class="actor" id="actor" aria-hidden="true">
-                <b id="poseName">chỉ trái</b>
-                <img id="actorCustomImg" class="actor__custom-img" alt="" />
-                <i class="head"></i><i class="body"></i><i class="arm left"></i><i class="arm right"></i><i class="leg one"></i><i class="leg two"></i>
+          </div>
+        </div>
+        <div class="panel__section">
+          <h2 class="panel__title">Từ so sánh</h2>
+          <div class="term-grid">
+            <label class="field-label">Vế trái<input id="leftTerm" value="Khách quan" /></label>
+            <label class="field-label field-label--color">Màu<input id="leftColor" type="color"
+                value="#b92c1e" /></label>
+            <label class="field-label">Vế phải<input id="rightTerm" value="Chủ quan" /></label>
+            <label class="field-label field-label--color">Màu<input id="rightColor" type="color"
+                value="#5d9a4d" /></label>
+          </div>
+        </div>
+        <div class="panel__section">
+          <h2 class="panel__title">Kích thước chữ, Nhân vật &amp; Màu nền</h2>
+          <div class="style-config-grid">
+            <label class="field-label">Cỡ chữ thuyết minh (px)
+              <div class="font-size-control">
+                <button id="fontSizeDecBtn" type="button" class="btn-step">-</button>
+                <input id="fontSizeInput" type="number" min="20" max="80" value="40" />
+                <button id="fontSizeIncBtn" type="button" class="btn-step">+</button>
               </div>
-            </div>
-          </div>
-        </article>
-        <div class="player">
-          <button class="btn-play" id="playButton" type="button">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-            Phát thử
-          </button>
-          <time id="timeReadout" class="player__time">00:00</time>
-        </div>
-      </section>
-
-      <section class="editor">
-        <nav class="tabs">
-          <button class="tab active" data-panel="contentPanel" type="button">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
-            Hình ảnh
-          </button>
-          <button class="tab" data-panel="voicePanel" type="button">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v4M8 23h8"/></svg>
-            Giọng đọc
-          </button>
-          <button class="tab" data-panel="scenePanel" type="button">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
-            Cảnh
-          </button>
-          <button class="tab" data-panel="actorPanel" type="button">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-            Nhân vật
-          </button>
-        </nav>
-
-        <div class="panel active" id="contentPanel">
-          <div class="panel__section">
-            <h2 class="panel__title">Từ so sánh</h2>
-            <div class="term-grid">
-              <label class="field-label">Vế trái<input id="leftTerm" value="Khách quan" /></label>
-              <label class="field-label field-label--color">Màu<input id="leftColor" type="color" value="#b92c1e" /></label>
-              <label class="field-label">Vế phải<input id="rightTerm" value="Chủ quan" /></label>
-              <label class="field-label field-label--color">Màu<input id="rightColor" type="color" value="#5d9a4d" /></label>
-            </div>
-          </div>
-          <div class="panel__section">
-            <h2 class="panel__title">Màu nền video</h2>
+            </label>
+            <label class="field-label">Kích thước nhân vật (%)
+              <div class="font-size-control">
+                <button id="actorScaleDecBtn" type="button" class="btn-step">-</button>
+                <input id="actorScaleInput" type="number" min="30" max="250" value="100" step="5" />
+                <button id="actorScaleIncBtn" type="button" class="btn-step">+</button>
+              </div>
+            </label>
             <div class="video-bg-row">
-              <span>Chọn màu nền</span>
+              <span>Màu nền video</span>
               <input id="videoBg" type="color" value="#ffffff" />
             </div>
           </div>
-          <div class="panel__section">
-            <h2 class="panel__title">Ảnh minh họa</h2>
-            <div class="asset-grid">
-              <article class="asset-card">
+        </div>
+        <div class="panel__section">
+          <h2 class="panel__title">Ảnh minh họa</h2>
+          <div class="asset-grid">
+            <article class="asset-card">
+              <div class="asset-card__preview">
                 <img id="leftEditorImage" alt="Ảnh trái" />
+                <span class="asset-card__placeholder" id="leftEditorPlaceholder">Chưa có ảnh</span>
+              </div>
+              <div class="asset-card__actions">
                 <label class="btn-upload">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-                  Thay ảnh trái
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                    stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                    <polyline points="17 8 12 3 7 8" />
+                    <line x1="12" y1="3" x2="12" y2="15" />
+                  </svg>
+                  Tải ảnh trái
                   <input id="leftUpload" type="file" accept="image/*" />
                 </label>
-              </article>
-              <article class="asset-card">
+                <button id="leftRemoveBtn" type="button" class="btn-remove-image" hidden>Xóa</button>
+              </div>
+            </article>
+            <article class="asset-card">
+              <div class="asset-card__preview">
                 <img id="rightEditorImage" alt="Ảnh phải" />
+                <span class="asset-card__placeholder" id="rightEditorPlaceholder">Chưa có ảnh</span>
+              </div>
+              <div class="asset-card__actions">
                 <label class="btn-upload">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-                  Thay ảnh phải
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                    stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                    <polyline points="17 8 12 3 7 8" />
+                    <line x1="12" y1="3" x2="12" y2="15" />
+                  </svg>
+                  Tải ảnh phải
                   <input id="rightUpload" type="file" accept="image/*" />
                 </label>
-              </article>
-            </div>
+                <button id="rightRemoveBtn" type="button" class="btn-remove-image" hidden>Xóa</button>
+              </div>
+            </article>
           </div>
         </div>
+      </div>
 
-        <div class="panel" id="voicePanel">
-          <div class="panel__section">
-            <h2 class="panel__title">Cấu hình giọng đọc</h2>
-            <div class="voice-grid">
-              <label class="field-label">Bộ máy TTS<input value="VieNeu-TTS · ONNX CPU" disabled /></label>
-              <label class="field-label">Giọng đọc
-                <select id="voiceSelect">
-                  <option value="Minh Đức">Minh Đức — Nam · Bắc · Tin tức</option>
-                  <option value="Phạm Tuyên">Phạm Tuyên — Nam · Bắc · Tự nhiên</option>
-                  <option value="Thái Sơn">Thái Sơn — Nam · Nam · Kể chuyện</option>
-                  <option value="Xuân Vĩnh">Xuân Vĩnh — Nam · Nam · Tự nhiên</option>
-                  <option value="Thanh Bình">Thanh Bình — Nam · Bắc · Kể chuyện</option>
-                  <option value="Trúc Ly">Trúc Ly — Nữ · Bắc · Tự nhiên</option>
-                  <option value="Ngọc Linh">Ngọc Linh — Nữ · Bắc · Kể chuyện</option>
-                  <option value="Đoan Trang">Đoan Trang — Nữ · Bắc · Tự nhiên</option>
-                  <option value="Mai Anh">Mai Anh — Nữ · Bắc · Tin tức</option>
-                  <option value="Thục Đoan">Thục Đoan — Nữ · Nam · Kể chuyện</option>
-                  <option value="Minh Triết">Minh Triết — Nam · Nam · Tin tức</option>
-                  <option value="Thùy Dung">Thùy Dung — Nữ · Nam · Tin tức</option>
-                  <option value="Quang Sơn">Quang Sơn — Nam · Trung · Tự nhiên</option>
-                  <option value="Ngọc Trân">Ngọc Trân — Nữ · Trung · Tự nhiên</option>
-                </select>
-              </label>
-              <label class="field-label">Phong cách
-                <select id="styleSelect">
-                  <option value="tin_tuc">Tin tức</option>
-                  <option value="tu_nhien">Tự nhiên</option>
-                  <option value="doc_truyen">Đọc truyện</option>
-                </select>
-              </label>
-              <label class="field-label">Hiệu ứng chữ
-                <select id="highlightMode">
-                  <option value="word">Đổi màu từng từ</option>
-                  <option value="line">Đổi màu cả dòng</option>
-                </select>
-              </label>
-            </div>
+      <div class="panel" id="voicePanel">
+        <div class="panel__section">
+          <h2 class="panel__title">Cấu hình giọng đọc</h2>
+          <div class="voice-grid">
+            <label class="field-label">Bộ máy TTS<input value="VieNeu-TTS · ONNX CPU" disabled /></label>
+            <label class="field-label">Giọng đọc
+              <select id="voiceSelect">
+                <option value="Minh Đức">Minh Đức — Nam · Bắc · Tin tức</option>
+                <option value="Phạm Tuyên">Phạm Tuyên — Nam · Bắc · Tự nhiên</option>
+                <option value="Thái Sơn">Thái Sơn — Nam · Nam · Kể chuyện</option>
+                <option value="Xuân Vĩnh">Xuân Vĩnh — Nam · Nam · Tự nhiên</option>
+                <option value="Thanh Bình">Thanh Bình — Nam · Bắc · Kể chuyện</option>
+                <option value="Trúc Ly">Trúc Ly — Nữ · Bắc · Tự nhiên</option>
+                <option value="Ngọc Linh">Ngọc Linh — Nữ · Bắc · Kể chuyện</option>
+                <option value="Đoan Trang">Đoan Trang — Nữ · Bắc · Tự nhiên</option>
+                <option value="Mai Anh">Mai Anh — Nữ · Bắc · Tin tức</option>
+                <option value="Thục Đoan">Thục Đoan — Nữ · Nam · Kể chuyện</option>
+                <option value="Minh Triết">Minh Triết — Nam · Nam · Tin tức</option>
+                <option value="Thùy Dung">Thùy Dung — Nữ · Nam · Tin tức</option>
+                <option value="Quang Sơn">Quang Sơn — Nam · Trung · Tự nhiên</option>
+                <option value="Ngọc Trân">Ngọc Trân — Nữ · Trung · Tự nhiên</option>
+              </select>
+            </label>
+            <label class="field-label">Phong cách
+              <select id="styleSelect">
+                <option value="tin_tuc">Tin tức</option>
+                <option value="tu_nhien">Tự nhiên</option>
+                <option value="doc_truyen">Đọc truyện</option>
+              </select>
+            </label>
+            <label class="field-label">Hiệu ứng chữ
+              <select id="highlightMode">
+                <option value="word">Đổi màu từng từ</option>
+                <option value="line">Đổi màu cả dòng</option>
+              </select>
+            </label>
           </div>
-          <div class="voice-note">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-            Renderer dùng giọng local để tạo WAV từng cảnh, đo thời lượng thật rồi kết xuất MP4 theo audio.
+          <div class="voice-preview-row">
+            <button id="previewVoiceBtn" type="button" class="btn-voice-preview">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round">
+                <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+                <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07" />
+              </svg>
+              <span>Nghe thử giọng này</span>
+            </button>
           </div>
         </div>
+        <div class="voice-note">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10" />
+            <line x1="12" y1="8" x2="12" y2="12" />
+            <line x1="12" y1="16" x2="12.01" y2="16" />
+          </svg>
+          Renderer dùng giọng local để tạo WAV từng cảnh, đo thời lượng thật rồi kết xuất MP4 theo audio.
+        </div>
+      </div>
 
-        <div class="panel" id="scenePanel">
-          <div class="panel__section">
-            <h2 class="panel__title">Thứ tự & tư thế cảnh</h2>
-            <div id="sceneList" class="scene-list"></div>
-          </div>
+      <div class="panel" id="scenePanel">
+        <div class="panel__section">
+          <h2 class="panel__title">Thứ tự & tư thế cảnh</h2>
+          <div id="sceneList" class="scene-list"></div>
         </div>
+      </div>
 
-        <div class="panel" id="actorPanel">
-          <div class="panel__section">
-            <h2 class="panel__title">Nhân vật tùy chỉnh</h2>
-            <p class="panel-note">Tải lên ảnh nhân vật theo từng tư thế. Ảnh được nhúng vào video thay nhân vật mặc định.</p>
-            <div class="actor-group-label">Chỉ hướng &amp; Suy nghĩ</div>
-            <div class="actor-config-grid">
-              <article class="actor-config-card" id="poseCardPointLeft">
-                <div class="actor-config-card__label">Chỉ trái</div>
-                <div class="actor-config-card__preview" id="actorPreviewWrapPointLeft">
-                  <img id="actorPreviewPointLeft" alt="Tư thế chỉ trái" />
-                  <span class="actor-config-card__placeholder">Chưa có ảnh</span>
-                </div>
-                <label class="btn-upload">Tải ảnh<input id="actorUploadPointLeft" type="file" accept="image/*" /></label>
-                <button class="actor-config-card__remove" id="actorRemovePointLeft" type="button" hidden>Xóa</button>
-              </article>
-              <article class="actor-config-card" id="poseCardPointRight">
-                <div class="actor-config-card__label">Chỉ phải</div>
-                <div class="actor-config-card__preview" id="actorPreviewWrapPointRight">
-                  <img id="actorPreviewPointRight" alt="Tư thế chỉ phải" />
-                  <span class="actor-config-card__placeholder">Chưa có ảnh</span>
-                </div>
-                <label class="btn-upload">Tải ảnh<input id="actorUploadPointRight" type="file" accept="image/*" /></label>
-                <button class="actor-config-card__remove" id="actorRemovePointRight" type="button" hidden>Xóa</button>
-              </article>
-              <article class="actor-config-card" id="poseCardThink">
-                <div class="actor-config-card__label">Đặt câu hỏi</div>
-                <div class="actor-config-card__preview" id="actorPreviewWrapThink">
-                  <img id="actorPreviewThink" alt="Tư thế đặt câu hỏi" />
-                  <span class="actor-config-card__placeholder">Chưa có ảnh</span>
-                </div>
-                <label class="btn-upload">Tải ảnh<input id="actorUploadThink" type="file" accept="image/*" /></label>
-                <button class="actor-config-card__remove" id="actorRemoveThink" type="button" hidden>Xóa</button>
-              </article>
-            </div>
-            <div class="actor-group-label">Giải thích &amp; Phân tích</div>
-            <div class="actor-config-grid">
-              <article class="actor-config-card" id="poseCardExplain1">
-                <div class="actor-config-card__label">Giải thích</div>
-                <div class="actor-config-card__preview" id="actorPreviewWrapExplain1">
-                  <img id="actorPreviewExplain1" alt="Tư thế giải thích" />
-                  <span class="actor-config-card__placeholder">Chưa có ảnh</span>
-                </div>
-                <label class="btn-upload">Tải ảnh<input id="actorUploadExplain1" type="file" accept="image/*" /></label>
-                <button class="actor-config-card__remove" id="actorRemoveExplain1" type="button" hidden>Xóa</button>
-              </article>
-              <article class="actor-config-card" id="poseCardExplain2">
-                <div class="actor-config-card__label">Nhấn mạnh</div>
-                <div class="actor-config-card__preview" id="actorPreviewWrapExplain2">
-                  <img id="actorPreviewExplain2" alt="Tư thế nhấn mạnh" />
-                  <span class="actor-config-card__placeholder">Chưa có ảnh</span>
-                </div>
-                <label class="btn-upload">Tải ảnh<input id="actorUploadExplain2" type="file" accept="image/*" /></label>
-                <button class="actor-config-card__remove" id="actorRemoveExplain2" type="button" hidden>Xóa</button>
-              </article>
-              <article class="actor-config-card" id="poseCardExplain3">
-                <div class="actor-config-card__label">Phân tích</div>
-                <div class="actor-config-card__preview" id="actorPreviewWrapExplain3">
-                  <img id="actorPreviewExplain3" alt="Tư thế phân tích" />
-                  <span class="actor-config-card__placeholder">Chưa có ảnh</span>
-                </div>
-                <label class="btn-upload">Tải ảnh<input id="actorUploadExplain3" type="file" accept="image/*" /></label>
-                <button class="actor-config-card__remove" id="actorRemoveExplain3" type="button" hidden>Xóa</button>
-              </article>
-            </div>
+      <div class="panel" id="actorPanel">
+        <div class="panel__section">
+          <h2 class="panel__title">Nhân vật tùy chỉnh</h2>
+          <p class="panel-note">Tải lên ảnh nhân vật theo từng tư thế. Ảnh được nhúng vào video thay nhân vật mặc định.
+          </p>
+          <div class="actor-group-label">Chỉ hướng &amp; Suy nghĩ</div>
+          <div class="actor-config-grid">
+            <article class="actor-config-card" id="poseCardPointLeft">
+              <div class="actor-config-card__label">Chỉ trái</div>
+              <div class="actor-config-card__preview" id="actorPreviewWrapPointLeft">
+                <img id="actorPreviewPointLeft" alt="Tư thế chỉ trái" />
+                <span class="actor-config-card__placeholder">Chưa có ảnh</span>
+              </div>
+              <label class="btn-upload">Tải ảnh<input id="actorUploadPointLeft" type="file" accept="image/*" /></label>
+              <button class="actor-config-card__remove" id="actorRemovePointLeft" type="button" hidden>Xóa</button>
+            </article>
+            <article class="actor-config-card" id="poseCardPointRight">
+              <div class="actor-config-card__label">Chỉ phải</div>
+              <div class="actor-config-card__preview" id="actorPreviewWrapPointRight">
+                <img id="actorPreviewPointRight" alt="Tư thế chỉ phải" />
+                <span class="actor-config-card__placeholder">Chưa có ảnh</span>
+              </div>
+              <label class="btn-upload">Tải ảnh<input id="actorUploadPointRight" type="file" accept="image/*" /></label>
+              <button class="actor-config-card__remove" id="actorRemovePointRight" type="button" hidden>Xóa</button>
+            </article>
+            <article class="actor-config-card" id="poseCardThink">
+              <div class="actor-config-card__label">Đặt câu hỏi</div>
+              <div class="actor-config-card__preview" id="actorPreviewWrapThink">
+                <img id="actorPreviewThink" alt="Tư thế đặt câu hỏi" />
+                <span class="actor-config-card__placeholder">Chưa có ảnh</span>
+              </div>
+              <label class="btn-upload">Tải ảnh<input id="actorUploadThink" type="file" accept="image/*" /></label>
+              <button class="actor-config-card__remove" id="actorRemoveThink" type="button" hidden>Xóa</button>
+            </article>
           </div>
-          <div class="actor-config-actions">
-            <button id="actorResetBtn" type="button" class="btn-ghost">Xóa tất cả</button>
-            <button id="actorSaveBtn" type="button" class="btn-render">Lưu mặc định</button>
+          <div class="actor-group-label">Giải thích &amp; Phân tích</div>
+          <div class="actor-config-grid">
+            <article class="actor-config-card" id="poseCardExplain1">
+              <div class="actor-config-card__label">Giải thích</div>
+              <div class="actor-config-card__preview" id="actorPreviewWrapExplain1">
+                <img id="actorPreviewExplain1" alt="Tư thế giải thích" />
+                <span class="actor-config-card__placeholder">Chưa có ảnh</span>
+              </div>
+              <label class="btn-upload">Tải ảnh<input id="actorUploadExplain1" type="file" accept="image/*" /></label>
+              <button class="actor-config-card__remove" id="actorRemoveExplain1" type="button" hidden>Xóa</button>
+            </article>
+            <article class="actor-config-card" id="poseCardExplain2">
+              <div class="actor-config-card__label">Nhấn mạnh</div>
+              <div class="actor-config-card__preview" id="actorPreviewWrapExplain2">
+                <img id="actorPreviewExplain2" alt="Tư thế nhấn mạnh" />
+                <span class="actor-config-card__placeholder">Chưa có ảnh</span>
+              </div>
+              <label class="btn-upload">Tải ảnh<input id="actorUploadExplain2" type="file" accept="image/*" /></label>
+              <button class="actor-config-card__remove" id="actorRemoveExplain2" type="button" hidden>Xóa</button>
+            </article>
+            <article class="actor-config-card" id="poseCardExplain3">
+              <div class="actor-config-card__label">Phân tích</div>
+              <div class="actor-config-card__preview" id="actorPreviewWrapExplain3">
+                <img id="actorPreviewExplain3" alt="Tư thế phân tích" />
+                <span class="actor-config-card__placeholder">Chưa có ảnh</span>
+              </div>
+              <label class="btn-upload">Tải ảnh<input id="actorUploadExplain3" type="file" accept="image/*" /></label>
+              <button class="actor-config-card__remove" id="actorRemoveExplain3" type="button" hidden>Xóa</button>
+            </article>
           </div>
         </div>
-      </section>
+        <div class="actor-config-actions">
+          <button id="actorResetBtn" type="button" class="btn-ghost">Xóa tất cả</button>
+          <button id="actorSaveBtn" type="button" class="btn-render">Lưu mặc định</button>
+        </div>
+      </div>
+    </section>
 
-      <aside class="script">
-        <div class="script-head">
-          <div class="script-head__info">
-            <span class="script-head__label">Kịch bản</span>
-            <strong class="script-head__hint">Mỗi dòng = một cảnh</strong>
-          </div>
-          <div class="meta">
-            <span class="meta__item"><b id="lineCount">0</b> cảnh</span>
-            <span class="meta__item"><b id="durationCount">0</b>s</span>
-          </div>
+    <aside class="script">
+      <div class="script-head">
+        <div class="script-head__info">
+          <span class="script-head__label">Kịch bản</span>
+          <strong class="script-head__hint">Mỗi dòng = một cảnh</strong>
         </div>
-        <textarea id="scriptInput" spellcheck="false">Khách quan là cách nhìn sự việc đúng như nó đang diễn ra.
+        <div class="meta">
+          <span class="meta__item"><b id="lineCount">0</b> cảnh</span>
+          <span class="meta__item"><b id="durationCount">0</b>s</span>
+        </div>
+      </div>
+      <textarea id="scriptInput" spellcheck="false">Khách quan là cách nhìn sự việc đúng như nó đang diễn ra.
 Chủ quan là góc nhìn chịu ảnh hưởng bởi cảm xúc và kinh nghiệm cá nhân.
 Khi so sánh hai khái niệm, hãy nhìn vào điểm khác nhau trong cách đánh giá.</textarea>
-        <div class="timeline" id="timeline"></div>
-      </aside>
-    </main>
+      <div class="timeline" id="timeline"></div>
+    </aside>
+  </main>
 
-    <div class="render-panel" id="renderPanel" hidden>
-      <div class="render-panel__backdrop"></div>
-      <div class="render-panel__box">
-        <div class="render-panel__head">
-          <strong>Kết xuất video</strong>
-          <button class="render-panel__close" id="renderPanelClose" type="button" aria-label="Đóng">×</button>
-        </div>
-        <div class="render-panel__status" id="renderStatus">Đang chuẩn bị…</div>
-        <div class="render-panel__progress-wrap">
-          <div class="render-panel__progress-bar" id="progressBar"></div>
-        </div>
-        <div class="render-panel__progress-label" id="progressLabel">0%</div>
-        <div class="render-panel__log" id="renderLog" aria-live="polite"></div>
-        <div class="render-panel__foot">
-          <button class="render-panel__btn render-panel__btn--cancel" id="renderCancelBtn" type="button">Hủy</button>
-          <button class="render-panel__btn render-panel__btn--open" id="renderOpenBtn" type="button" hidden>Mở file video</button>
-        </div>
+  <div class="render-panel" id="renderPanel" hidden>
+    <div class="render-panel__backdrop"></div>
+    <div class="render-panel__box">
+      <div class="render-panel__head">
+        <strong>Kết xuất video</strong>
+        <button class="render-panel__close" id="renderPanelClose" type="button" aria-label="Đóng">×</button>
+      </div>
+      <div class="render-panel__status" id="renderStatus">Đang chuẩn bị…</div>
+      <div class="render-panel__progress-wrap">
+        <div class="render-panel__progress-bar" id="progressBar"></div>
+      </div>
+      <div class="render-panel__progress-label" id="progressLabel">0%</div>
+      <div class="render-panel__log" id="renderLog" aria-live="polite"></div>
+      <div class="render-panel__foot">
+        <button class="render-panel__btn render-panel__btn--cancel" id="renderCancelBtn" type="button">Hủy</button>
+        <button class="render-panel__btn render-panel__btn--open" id="renderOpenBtn" type="button" hidden>Mở file
+          video</button>
       </div>
     </div>
+  </div>
 
-    <div class="render-settings" id="renderSettings" hidden>
-      <div class="render-settings__backdrop"></div>
-      <div class="render-settings__box">
-        <div class="render-settings__head">
-          <strong>Xuất video</strong>
-          <button class="render-panel__close" id="renderSettingsClose" type="button" aria-label="Đóng">×</button>
-        </div>
-        <div class="render-settings__body">
-          <label class="render-settings__label">
-            <span>Tên file video</span>
-            <input id="videoNameInput" type="text" placeholder="riki-scene-output" />
-          </label>
-          <label class="render-settings__label">
-            <span>Nơi lưu video</span>
-            <div class="render-settings__path-row">
-              <input id="outputPathInput" type="text" readonly placeholder="Mặc định: thư mục output của dự án" />
-              <button id="browseFolderBtn" type="button">Chọn…</button>
-            </div>
-          </label>
-          <div class="render-settings__info">
-            Nếu không chọn, video lưu vào <code>d:\riki-scene\output\</code>
+  <div class="render-settings" id="renderSettings" hidden>
+    <div class="render-settings__backdrop"></div>
+    <div class="render-settings__box">
+      <div class="render-settings__head">
+        <strong>Xuất video</strong>
+        <button class="render-panel__close" id="renderSettingsClose" type="button" aria-label="Đóng">×</button>
+      </div>
+      <div class="render-settings__body">
+        <label class="render-settings__label">
+          <span>Tên file video</span>
+          <input id="videoNameInput" type="text" value="riki-scene-output" placeholder="riki-scene-output" />
+        </label>
+        <label class="render-settings__label">
+          <span>Nơi lưu video</span>
+          <div class="render-settings__path-row">
+            <input id="outputPathInput" type="text" readonly value="d:\riki-scene\output\riki-scene-output.mp4" placeholder="d:\riki-scene\output\riki-scene-output.mp4" />
+            <button id="browseFolderBtn" type="button">Thay đổi…</button>
           </div>
-        </div>
-        <div class="render-settings__foot">
-          <button class="render-panel__btn render-panel__btn--cancel" id="settingsCancelBtn" type="button">Hủy</button>
-          <button class="render-panel__btn render-panel__btn--confirm" id="settingsConfirmBtn" type="button">Bắt đầu render →</button>
+        </label>
+        <div class="render-settings__info">
+          Mặc định video lưu vào <code>d:\riki-scene\output\</code>
         </div>
       </div>
+      <div class="render-settings__foot">
+        <button class="render-panel__btn render-panel__btn--cancel" id="settingsCancelBtn" type="button">Hủy</button>
+        <button class="render-panel__btn render-panel__btn--confirm" id="settingsConfirmBtn" type="button">Bắt đầu
+          render →</button>
+      </div>
     </div>
+  </div>
 
-    <div class="toast" id="toast"></div>
-    <script src="./app.js"></script>
-  </body>
+  <div class="toast" id="toast"></div>
+  <script src="./app.js"></script>
+</body>
+
 </html>

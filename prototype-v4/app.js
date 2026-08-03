@@ -1,7 +1,17 @@
 const fallbackLeft = svgData(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 400"><rect width="640" height="400" fill="#b9d7ea"/><circle cx="270" cy="168" r="78" fill="#fff" opacity=".78"/><circle cx="270" cy="145" r="28" fill="#347a99"/><path d="M210 236c19-47 99-47 119 0" fill="#347a99"/><path d="M70 330c94-123 167-200 278-248" stroke="#202525" stroke-width="20" stroke-linecap="round" opacity=".28"/><text x="42" y="64" font-family="Segoe UI Variable,Segoe UI,Arial" font-size="34" font-weight="800" fill="#202525">Góc nhìn đúng</text></svg>`);
 const fallbackRight = svgData(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 400"><rect width="640" height="400" fill="#cfe0c8"/><circle cx="200" cy="128" r="54" fill="#fff"/><circle cx="445" cy="128" r="54" fill="#fff"/><text x="181" y="148" font-family="Segoe UI Variable,Segoe UI,Arial" font-size="82" fill="#b64020">6</text><text x="426" y="148" font-family="Segoe UI Variable,Segoe UI,Arial" font-size="82" fill="#b64020">9</text><rect x="148" y="218" width="98" height="118" rx="22" fill="#202525"/><circle cx="197" cy="194" r="36" fill="#f1bd78"/><rect x="394" y="218" width="98" height="118" rx="22" fill="#202525"/><circle cx="443" cy="194" r="36" fill="#f1bd78"/></svg>`);
 
-const state = { sceneIndex: 0, wordIndex: 0, playing: false, timer: null, images: { left: "", right: "" }, poses: [] };
+const state = {
+  sceneIndex: 0,
+  wordIndex: 0,
+  playing: false,
+  timer: null,
+  images: { left: "", right: "" },
+  poses: [],
+  activeScopeIndex: -1,
+  globalTerms: { left: "Khách quan", right: "Chủ quan" },
+  sceneOverrides: []
+};
 const els = Object.fromEntries([...document.querySelectorAll("[id]")].map((el) => [el.id, el]));
 
 const actorState = {
@@ -13,37 +23,157 @@ const actorState = {
   "explain-3": localStorage.getItem("riki:actor:explain-3") || "",
 };
 
+const defaultOutputDir = "d:\\riki-scene\\output";
+
 const settingsState = {
-  outputPath: "",
-  videoName: "",
+  outputPath: "d:\\riki-scene\\output\\riki-scene-output.mp4",
+  videoName: "riki-scene-output",
+  isCustomPath: false,
 };
 
 function svgData(value) { return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(value)}`; }
 function scenes() { return els.scriptInput.value.split(/\r?\n/).map((text) => text.trim()).filter(Boolean); }
 function estimate(text) { return Math.max(2, Math.min(7, Math.round(text.split(/\s+/).length / 3.4))); }
 function defaultPose(i, text) { return text.includes("?") || text.toLowerCase().includes("khác") ? "think" : i % 2 === 0 ? "point-left" : "point-right"; }
-function poseLabel(pose) { return { "point-left": "chỉ trái", "point-right": "chỉ phải", think: "đặt câu hỏi", "explain-1": "giải thích", "explain-2": "nhấn mạnh", "explain-3": "phân tích" }[pose] || "chỉ trái"; }
+function poseLabel(pose) { return { "point-left": "chỉ trái", "point-right": "chỉ phải", think: "đặt câu hỏi", "explain-1": "giải thích", "explain-2": "nhấn mạnh", "explain-3": "phân tích", none: "không nhân vật" }[pose] || "chỉ trái"; }
+
+function getEffectiveSceneData(i) {
+  const custom = state.sceneOverrides[i];
+  const gLeftTerm = state.globalTerms.left;
+  const gRightTerm = state.globalTerms.right;
+  if (custom && custom.isCustom) {
+    return {
+      leftTerm: custom.leftTerm !== undefined && custom.leftTerm !== "" ? custom.leftTerm : gLeftTerm,
+      rightTerm: custom.rightTerm !== undefined && custom.rightTerm !== "" ? custom.rightTerm : gRightTerm,
+      leftImage: custom.leftImage || state.images.left || "",
+      rightImage: custom.rightImage || state.images.right || "",
+      isCustom: true
+    };
+  }
+  return {
+    leftTerm: gLeftTerm,
+    rightTerm: gRightTerm,
+    leftImage: state.images.left || "",
+    rightImage: state.images.right || "",
+    isCustom: false
+  };
+}
+
+function renderScopeNav(list) {
+  if (!els.scopeNav) return;
+  els.scopeNav.innerHTML = "";
+  const globalBtn = document.createElement("button");
+  globalBtn.type = "button";
+  globalBtn.className = `scope-btn ${state.activeScopeIndex === -1 ? "active" : ""}`;
+  globalBtn.textContent = "🌐 Tất cả cảnh (Mặc định)";
+  globalBtn.addEventListener("click", () => {
+    state.activeScopeIndex = -1;
+    render();
+  });
+  els.scopeNav.append(globalBtn);
+
+  list.forEach((_, i) => {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    const isCustom = state.sceneOverrides[i] && state.sceneOverrides[i].isCustom;
+    btn.className = `scope-btn ${state.activeScopeIndex === i ? "active" : ""} ${isCustom ? "scope-btn--custom" : ""}`;
+    btn.textContent = `Cảnh ${i + 1}`;
+    btn.addEventListener("click", () => {
+      state.activeScopeIndex = i;
+      state.sceneIndex = i;
+      state.wordIndex = 0;
+      render();
+    });
+    els.scopeNav.append(btn);
+  });
+}
+
+function renderSceneOverrideBar() {
+  if (!els.sceneOverrideBar) return;
+  if (state.activeScopeIndex === -1) {
+    els.sceneOverrideBar.hidden = true;
+    return;
+  }
+  els.sceneOverrideBar.hidden = false;
+  const idx = state.activeScopeIndex;
+  const custom = state.sceneOverrides[idx];
+  if (custom && custom.isCustom) {
+    els.sceneOverrideStatus.textContent = `Đang dùng ảnh & từ riêng cho Cảnh ${idx + 1}`;
+    els.enableOverrideBtn.hidden = true;
+    els.resetOverrideBtn.hidden = false;
+  } else {
+    els.sceneOverrideStatus.textContent = `Đang dùng ảnh & từ mặc định cho Cảnh ${idx + 1}`;
+    els.enableOverrideBtn.hidden = false;
+    els.resetOverrideBtn.hidden = true;
+  }
+}
 
 function render() {
   const list = scenes();
   const phoneEl = document.querySelector(".phone");
   if (phoneEl) phoneEl.style.setProperty("--video-bg", els.videoBg.value);
   state.poses = list.map((text, i) => state.poses[i] || defaultPose(i, text));
+  state.sceneOverrides = list.map((_, i) => state.sceneOverrides[i] || { isCustom: false, leftTerm: "", rightTerm: "", leftImage: "", rightImage: "" });
   if (state.sceneIndex >= list.length) state.sceneIndex = Math.max(0, list.length - 1);
+  if (state.activeScopeIndex >= list.length) state.activeScopeIndex = -1;
+
   const text = list[state.sceneIndex] || "";
   const pose = state.poses[state.sceneIndex] || "point-left";
-  els.leftTitle.textContent = els.leftTerm.value;
-  els.rightTitle.textContent = els.rightTerm.value;
+
+  const previewData = getEffectiveSceneData(state.sceneIndex);
+  els.leftTitle.textContent = previewData.leftTerm;
+  els.rightTitle.textContent = previewData.rightTerm;
   els.leftTitle.style.color = els.leftColor.value;
   els.rightTitle.style.color = els.rightColor.value;
-  els.leftImage.src = state.images.left || fallbackLeft;
-  els.rightImage.src = state.images.right || fallbackRight;
-  els.leftEditorImage.src = state.images.left || fallbackLeft;
-  els.rightEditorImage.src = state.images.right || fallbackRight;
+  els.leftImage.src = previewData.leftImage || "";
+  els.rightImage.src = previewData.rightImage || "";
+
+  // Dynamic layout centering classes for card preview
+  const hasImages = Boolean(previewData.leftImage || previewData.rightImage);
+  const hasActor = Boolean(pose !== "none");
+  const card = document.querySelector(".card");
+  const userFontSize = els.fontSizeInput ? (parseInt(els.fontSizeInput.value, 10) || 40) : 40;
+  const previewFontSize = Math.round(userFontSize * 0.38);
+  if (card) {
+    card.classList.toggle("card--no-images", !hasImages);
+    card.classList.toggle("card--no-actor", !hasActor);
+    card.classList.toggle("card--text-only", !hasImages && !hasActor);
+    card.style.setProperty("--preview-font-size", `${previewFontSize}px`);
+  }
+
+  // Update editor inputs & image previews
+  const editorData = state.activeScopeIndex === -1 ? { leftImage: state.images.left, rightImage: state.images.right, leftTerm: state.globalTerms.left, rightTerm: state.globalTerms.right } : getEffectiveSceneData(state.activeScopeIndex);
+  els.leftTerm.value = editorData.leftTerm;
+  els.rightTerm.value = editorData.rightTerm;
+
+  if (editorData.leftImage) {
+    els.leftEditorImage.src = editorData.leftImage;
+    els.leftEditorImage.classList.add("has-image");
+    if (els.leftRemoveBtn) els.leftRemoveBtn.hidden = false;
+  } else {
+    els.leftEditorImage.src = "";
+    els.leftEditorImage.classList.remove("has-image");
+    if (els.leftRemoveBtn) els.leftRemoveBtn.hidden = true;
+  }
+
+  if (editorData.rightImage) {
+    els.rightEditorImage.src = editorData.rightImage;
+    els.rightEditorImage.classList.add("has-image");
+    if (els.rightRemoveBtn) els.rightRemoveBtn.hidden = false;
+  } else {
+    els.rightEditorImage.src = "";
+    els.rightEditorImage.classList.remove("has-image");
+    if (els.rightRemoveBtn) els.rightRemoveBtn.hidden = true;
+  }
+
   els.actor.className = `actor ${pose}`;
   els.poseName.textContent = poseLabel(pose);
+  const actorScalePct = els.actorScaleInput ? (parseInt(els.actorScaleInput.value, 10) || 100) : 100;
+  const scaleFactor = (actorScalePct / 100).toFixed(2);
+  els.actor.style.setProperty("--actor-scale", scaleFactor);
+
   const customImg = actorState[pose];
-  if (customImg) {
+  if (customImg && pose !== "none") {
     els.actorCustomImg.src = customImg;
     els.actor.classList.add("actor--custom");
   } else {
@@ -58,6 +188,8 @@ function render() {
   renderHighlight(text);
   renderScenes(list);
   renderTimeline(list);
+  renderScopeNav(list);
+  renderSceneOverrideBar();
 }
 
 function renderHighlight(text) {
@@ -71,8 +203,16 @@ function renderScenes(list) {
   list.forEach((text, i) => {
     const row = document.createElement("article");
     row.className = `scene-row ${i === state.sceneIndex ? "active" : ""}`;
-    row.innerHTML = `<button type="button">${i + 1}</button><p>${escapeHtml(text)}</p><select><option value="point-left">Chỉ trái</option><option value="point-right">Chỉ phải</option><option value="think">Đặt câu hỏi</option><option value="explain-1">Giải thích</option><option value="explain-2">Nhấn mạnh</option><option value="explain-3">Phân tích</option></select>`;
-    row.querySelector("button").addEventListener("click", () => { state.sceneIndex = i; state.wordIndex = 0; render(); });
+    const isCustom = state.sceneOverrides[i] && state.sceneOverrides[i].isCustom;
+    const badgeHtml = isCustom ? `<span class="scene-row__badge">📷 Ảnh riêng</span>` : "";
+    row.innerHTML = `<button type="button">${i + 1}</button><p>${escapeHtml(text)}${badgeHtml}</p><select><option value="point-left">Chỉ trái</option><option value="point-right">Chỉ phải</option><option value="think">Đặt câu hỏi</option><option value="explain-1">Giải thích</option><option value="explain-2">Nhấn mạnh</option><option value="explain-3">Phân tích</option><option value="none">🚫 Không dùng nhân vật</option></select>`;
+    row.addEventListener("click", (e) => {
+      if (e.target.tagName.toLowerCase() === "select") return;
+      state.sceneIndex = i;
+      state.activeScopeIndex = i;
+      state.wordIndex = 0;
+      render();
+    });
     const select = row.querySelector("select");
     select.value = state.poses[i];
     select.addEventListener("change", () => { state.poses[i] = select.value; state.sceneIndex = i; render(); });
@@ -88,7 +228,12 @@ function renderTimeline(list) {
     clip.className = `clip ${i === state.sceneIndex ? "active" : ""}`;
     clip.style.flex = `${estimate(text)} 1 0`;
     clip.textContent = i + 1;
-    clip.addEventListener("click", () => { state.sceneIndex = i; state.wordIndex = 0; render(); });
+    clip.addEventListener("click", () => {
+      state.sceneIndex = i;
+      state.activeScopeIndex = i;
+      state.wordIndex = 0;
+      render();
+    });
     els.timeline.append(clip);
   });
 }
@@ -114,7 +259,22 @@ function togglePlay() {
 function readImage(file, side) {
   if (!file) return;
   const reader = new FileReader();
-  reader.onload = () => { state.images[side] = reader.result; render(); };
+  reader.onload = () => {
+    if (state.activeScopeIndex === -1) {
+      state.images[side] = reader.result;
+    } else {
+      const idx = state.activeScopeIndex;
+      const scopeData = getEffectiveSceneData(idx);
+      state.sceneOverrides[idx] = {
+        isCustom: true,
+        leftTerm: scopeData.leftTerm,
+        rightTerm: scopeData.rightTerm,
+        leftImage: side === "left" ? reader.result : scopeData.leftImage,
+        rightImage: side === "right" ? reader.result : scopeData.rightImage,
+      };
+    }
+    render();
+  };
   reader.readAsDataURL(file);
 }
 
@@ -135,12 +295,116 @@ document.querySelectorAll(".tab").forEach((tab) => tab.addEventListener("click",
   document.querySelector(`#${tab.dataset.panel}`).classList.add("active");
 }));
 
-[els.leftTerm, els.rightTerm, els.leftColor, els.rightColor, els.videoBg, els.scriptInput, els.voiceSelect, els.styleSelect, els.highlightMode].forEach((item) => item.addEventListener("input", render));
+els.leftTerm.addEventListener("input", () => {
+  if (state.activeScopeIndex === -1) {
+    state.globalTerms.left = els.leftTerm.value;
+  } else {
+    const idx = state.activeScopeIndex;
+    const scopeData = getEffectiveSceneData(idx);
+    state.sceneOverrides[idx] = {
+      ...scopeData,
+      isCustom: true,
+      leftTerm: els.leftTerm.value
+    };
+  }
+  render();
+});
+
+els.rightTerm.addEventListener("input", () => {
+  if (state.activeScopeIndex === -1) {
+    state.globalTerms.right = els.rightTerm.value;
+  } else {
+    const idx = state.activeScopeIndex;
+    const scopeData = getEffectiveSceneData(idx);
+    state.sceneOverrides[idx] = {
+      ...scopeData,
+      isCustom: true,
+      rightTerm: els.rightTerm.value
+    };
+  }
+  render();
+});
+
+function removeImage(side) {
+  if (state.activeScopeIndex === -1) {
+    state.images[side] = "";
+  } else {
+    const idx = state.activeScopeIndex;
+    const scopeData = getEffectiveSceneData(idx);
+    state.sceneOverrides[idx] = {
+      isCustom: true,
+      leftTerm: scopeData.leftTerm,
+      rightTerm: scopeData.rightTerm,
+      leftImage: side === "left" ? "" : scopeData.leftImage,
+      rightImage: side === "right" ? "" : scopeData.rightImage,
+    };
+  }
+  render();
+}
+
+[els.leftColor, els.rightColor, els.videoBg, els.fontSizeInput, els.actorScaleInput, els.scriptInput, els.voiceSelect, els.styleSelect, els.highlightMode].forEach((item) => { if (item) item.addEventListener("input", render); });
+if (els.fontSizeDecBtn) {
+  els.fontSizeDecBtn.addEventListener("click", () => {
+    const cur = parseInt(els.fontSizeInput.value, 10) || 40;
+    els.fontSizeInput.value = Math.max(20, cur - 2);
+    render();
+  });
+}
+if (els.fontSizeIncBtn) {
+  els.fontSizeIncBtn.addEventListener("click", () => {
+    const cur = parseInt(els.fontSizeInput.value, 10) || 40;
+    els.fontSizeInput.value = Math.min(80, cur + 2);
+    render();
+  });
+}
+if (els.actorScaleDecBtn) {
+  els.actorScaleDecBtn.addEventListener("click", () => {
+    const cur = parseInt(els.actorScaleInput.value, 10) || 100;
+    els.actorScaleInput.value = Math.max(30, cur - 5);
+    render();
+  });
+}
+if (els.actorScaleIncBtn) {
+  els.actorScaleIncBtn.addEventListener("click", () => {
+    const cur = parseInt(els.actorScaleInput.value, 10) || 100;
+    els.actorScaleInput.value = Math.min(250, cur + 5);
+    render();
+  });
+}
 els.leftUpload.addEventListener("change", (event) => readImage(event.target.files[0], "left"));
 els.rightUpload.addEventListener("change", (event) => readImage(event.target.files[0], "right"));
+if (els.leftRemoveBtn) els.leftRemoveBtn.addEventListener("click", () => removeImage("left"));
+if (els.rightRemoveBtn) els.rightRemoveBtn.addEventListener("click", () => removeImage("right"));
 els.prevScene.addEventListener("click", () => { const n = scenes().length || 1; state.sceneIndex = (state.sceneIndex - 1 + n) % n; state.wordIndex = 0; render(); });
 els.nextScene.addEventListener("click", () => { const n = scenes().length || 1; state.sceneIndex = (state.sceneIndex + 1) % n; state.wordIndex = 0; render(); });
 els.playButton.addEventListener("click", togglePlay);
+
+if (els.enableOverrideBtn) {
+  els.enableOverrideBtn.addEventListener("click", () => {
+    const idx = state.activeScopeIndex;
+    if (idx >= 0) {
+      const eff = getEffectiveSceneData(idx);
+      state.sceneOverrides[idx] = {
+        isCustom: true,
+        leftTerm: eff.leftTerm,
+        rightTerm: eff.rightTerm,
+        leftImage: eff.leftImage,
+        rightImage: eff.rightImage,
+      };
+      render();
+    }
+  });
+}
+
+if (els.resetOverrideBtn) {
+  els.resetOverrideBtn.addEventListener("click", () => {
+    const idx = state.activeScopeIndex;
+    if (idx >= 0 && state.sceneOverrides[idx]) {
+      state.sceneOverrides[idx].isCustom = false;
+      render();
+    }
+  });
+}
 
 function setActorImage(pose, dataUrl) {
   actorState[pose] = dataUrl;
@@ -208,6 +472,46 @@ els.actorSaveBtn.addEventListener("click", () => {
   showToast("Đã lưu nhân vật mặc định ✓");
 });
 
+let currentPreviewAudio = null;
+
+if (els.previewVoiceBtn) {
+  els.previewVoiceBtn.addEventListener("click", async () => {
+    const voice = els.voiceSelect.value;
+    const style = els.styleSelect.value;
+
+    if (currentPreviewAudio) {
+      currentPreviewAudio.pause();
+      currentPreviewAudio = null;
+    }
+
+    const btnSpan = els.previewVoiceBtn.querySelector("span");
+    const originalText = btnSpan ? btnSpan.textContent : "Nghe thử giọng này";
+
+    if (typeof window.electronAPI !== "undefined" && window.electronAPI.previewVoice) {
+      els.previewVoiceBtn.disabled = true;
+      if (btnSpan) btnSpan.textContent = "Đang tạo giọng mẫu…";
+
+      try {
+        const result = await window.electronAPI.previewVoice({ voice, style });
+        if (result && result.success && result.audio) {
+          currentPreviewAudio = new Audio(result.audio);
+          currentPreviewAudio.play();
+          showToast(`Đang phát giọng đọc thử: ${voice} (${style}) ✓`);
+        } else {
+          showToast(`Lỗi nghe thử giọng: ${result?.error || "Không thể tạo audio"}`);
+        }
+      } catch (err) {
+        showToast(`Lỗi nghe thử giọng: ${err.message}`);
+      } finally {
+        els.previewVoiceBtn.disabled = false;
+        if (btnSpan) btnSpan.textContent = originalText;
+      }
+    } else {
+      showToast(`Giọng đọc chọn: ${voice} (${style}). Chạy trong Electron để phát thử mẫu giọng!`);
+    }
+  });
+}
+
 els.actorResetBtn.addEventListener("click", () => {
   ["point-left", "point-right", "think", "explain-1", "explain-2", "explain-3"].forEach((pose) => {
     setActorImage(pose, "");
@@ -219,8 +523,8 @@ els.actorResetBtn.addEventListener("click", () => {
 function buildRenderConfig() {
   const list = scenes();
   return {
-    leftTerm: els.leftTerm.value,
-    rightTerm: els.rightTerm.value,
+    leftTerm: state.globalTerms.left,
+    rightTerm: state.globalTerms.right,
     leftColor: els.leftColor.value,
     rightColor: els.rightColor.value,
     leftImage: state.images.left || "",
@@ -228,6 +532,8 @@ function buildRenderConfig() {
     voice: els.voiceSelect.value,
     style: els.styleSelect.value,
     highlight: els.highlightMode.value,
+    fontSize: els.fontSizeInput ? (parseInt(els.fontSizeInput.value, 10) || 40) : 40,
+    actorScale: els.actorScaleInput ? (parseInt(els.actorScaleInput.value, 10) || 100) : 100,
     videoBg: els.videoBg.value,
     outputPath: settingsState.outputPath,
     videoName: settingsState.videoName || "riki-scene-output",
@@ -239,10 +545,18 @@ function buildRenderConfig() {
       "explain-2": actorState["explain-2"],
       "explain-3": actorState["explain-3"],
     },
-    scenes: list.map((text, i) => ({
-      text,
-      pose: state.poses[i] || "point-left",
-    })),
+    scenes: list.map((text, i) => {
+      const eff = getEffectiveSceneData(i);
+      return {
+        id: `scene-${i + 1}`,
+        text,
+        pose: state.poses[i] || "point-left",
+        leftTerm: eff.leftTerm,
+        rightTerm: eff.rightTerm,
+        leftImage: eff.leftImage,
+        rightImage: eff.rightImage,
+      };
+    }),
   };
 }
 
@@ -303,8 +617,12 @@ els.renderButton.addEventListener("click", () => {
   if (typeof window.electronAPI !== "undefined") {
     const list = scenes();
     if (!list.length) { showToast("Kịch bản đang trống. Hãy nhập ít nhất 1 dòng."); return; }
-    els.videoNameInput.value = settingsState.videoName || "";
-    els.outputPathInput.value = settingsState.outputPath || "";
+    const vName = settingsState.videoName || "riki-scene-output";
+    els.videoNameInput.value = vName;
+    if (!settingsState.outputPath) {
+      settingsState.outputPath = `${defaultOutputDir}\\${vName}.mp4`;
+    }
+    els.outputPathInput.value = settingsState.outputPath;
     els.renderSettings.hidden = false;
   } else {
     const cmd = `node D:\\riki-scene\\renderer\\render-vieneu-highlight.js --voice "${els.voiceSelect.value}" --style ${els.styleSelect.value} --highlight ${els.highlightMode.value}`;
@@ -321,12 +639,13 @@ els.browseFolderBtn.addEventListener("click", async () => {
   const videoName = els.videoNameInput.value.trim() || "riki-scene-output";
   const result = await window.electronAPI.showSaveDialog({
     title: "Chọn nơi lưu video",
-    defaultPath: `${videoName}.mp4`,
+    defaultPath: `${defaultOutputDir}\\${videoName}.mp4`,
     filters: [{ name: "MP4 Video", extensions: ["mp4"] }],
   });
   if (result && !result.canceled && result.filePath) {
     els.outputPathInput.value = result.filePath;
     settingsState.outputPath = result.filePath;
+    settingsState.isCustomPath = true;
     const parts = result.filePath.replace(/\\/g, "/").split("/");
     const fileName = parts[parts.length - 1].replace(/\.mp4$/i, "");
     els.videoNameInput.value = fileName;
@@ -335,10 +654,11 @@ els.browseFolderBtn.addEventListener("click", async () => {
 });
 
 els.videoNameInput.addEventListener("input", () => {
-  settingsState.videoName = els.videoNameInput.value.trim();
-  if (settingsState.outputPath) {
-    settingsState.outputPath = "";
-    els.outputPathInput.value = "";
+  const vName = els.videoNameInput.value.trim() || "riki-scene-output";
+  settingsState.videoName = vName;
+  if (!settingsState.isCustomPath) {
+    settingsState.outputPath = `${defaultOutputDir}\\${vName}.mp4`;
+    els.outputPathInput.value = settingsState.outputPath;
   }
 });
 

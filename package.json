@@ -4,7 +4,12 @@
   "description": "Riki Scene — xưởng kết xuất giọng đọc local",
   "main": "electron-main.js",
   "scripts": {
-    "start": "electron ."
+    "start": "electron .",
+    "setup": "node setup-binaries.js"
+  },
+  "dependencies": {
+    "sharp": "^0.33.5",
+    "ffmpeg-static": "^5.2.0"
   },
   "devDependencies": {
     "electron": "^31.0.0"
