@@ -15,12 +15,12 @@ const state = {
 const els = Object.fromEntries([...document.querySelectorAll("[id]")].map((el) => [el.id, el]));
 
 const actorState = {
-  "point-left": localStorage.getItem("riki:actor:point-left") || "",
-  "point-right": localStorage.getItem("riki:actor:point-right") || "",
-  "think": localStorage.getItem("riki:actor:think") || "",
-  "explain-1": localStorage.getItem("riki:actor:explain-1") || "",
-  "explain-2": localStorage.getItem("riki:actor:explain-2") || "",
-  "explain-3": localStorage.getItem("riki:actor:explain-3") || "",
+  "point-left": localStorage.getItem("riki:actor:point-left") || "../assets/riki-left.png",
+  "point-right": localStorage.getItem("riki:actor:point-right") || "../assets/riki-right.png",
+  "think": localStorage.getItem("riki:actor:think") || "../assets/riki-ques.png",
+  "explain-1": localStorage.getItem("riki:actor:explain-1") || "../assets/riki-giai-thich.png",
+  "explain-2": localStorage.getItem("riki:actor:explain-2") || "../assets/riki-nhan-manh.png",
+  "explain-3": localStorage.getItem("riki:actor:explain-3") || "../assets/riki-phan-tich.png",
 };
 
 const defaultOutputDir = "d:\\riki-scene\\output";
@@ -31,9 +31,25 @@ const settingsState = {
   isCustomPath: false,
 };
 
+function parsePhoneticText(rawText) {
+  if (!rawText) return { displayText: "", speechText: "" };
+  const displayText = rawText
+    .replace(/(\S+)\[([^\]]+)\]/g, "$1")
+    .replace(/\[([^\]]+)\]/g, "$1")
+    .trim();
+  const speechText = rawText
+    .replace(/(\S+)\[([^\]]+)\]/g, "$2")
+    .replace(/\[([^\]]+)\]/g, "$1")
+    .trim();
+  return { displayText, speechText };
+}
+
 function svgData(value) { return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(value)}`; }
 function scenes() { return els.scriptInput.value.split(/\r?\n/).map((text) => text.trim()).filter(Boolean); }
-function estimate(text) { return Math.max(2, Math.min(7, Math.round(text.split(/\s+/).length / 3.4))); }
+function estimate(text) {
+  const { speechText } = parsePhoneticText(text);
+  return Math.max(2, Math.min(7, Math.round(speechText.split(/\s+/).length / 3.4)));
+}
 function defaultPose(i, text) { return text.includes("?") || text.toLowerCase().includes("khác") ? "think" : i % 2 === 0 ? "point-left" : "point-right"; }
 function poseLabel(pose) { return { "point-left": "chỉ trái", "point-right": "chỉ phải", think: "đặt câu hỏi", "explain-1": "giải thích", "explain-2": "nhấn mạnh", "explain-3": "phân tích", none: "không nhân vật" }[pose] || "chỉ trái"; }
 
@@ -134,11 +150,13 @@ function render() {
   const card = document.querySelector(".card");
   const userFontSize = els.fontSizeInput ? (parseInt(els.fontSizeInput.value, 10) || 40) : 40;
   const previewFontSize = Math.round(userFontSize * 0.38);
+  const selectedFont = els.fontSelect ? els.fontSelect.value : "Segoe UI, Arial, sans-serif";
   if (card) {
     card.classList.toggle("card--no-images", !hasImages);
     card.classList.toggle("card--no-actor", !hasActor);
     card.classList.toggle("card--text-only", !hasImages && !hasActor);
     card.style.setProperty("--preview-font-size", `${previewFontSize}px`);
+    card.style.setProperty("--preview-font-family", selectedFont);
   }
 
   // Update editor inputs & image previews
@@ -193,7 +211,8 @@ function render() {
 }
 
 function renderHighlight(text) {
-  const words = text.split(/\s+/).filter(Boolean);
+  const { displayText } = parsePhoneticText(text);
+  const words = displayText.split(/\s+/).filter(Boolean);
   const lineMode = els.highlightMode.value === "line";
   els.highlightText.innerHTML = words.map((word, i) => `<span class="word ${(lineMode || i === state.wordIndex) ? "active-word" : ""}">${escapeHtml(word)}</span>`).join(" ");
 }
@@ -205,7 +224,8 @@ function renderScenes(list) {
     row.className = `scene-row ${i === state.sceneIndex ? "active" : ""}`;
     const isCustom = state.sceneOverrides[i] && state.sceneOverrides[i].isCustom;
     const badgeHtml = isCustom ? `<span class="scene-row__badge">📷 Ảnh riêng</span>` : "";
-    row.innerHTML = `<button type="button">${i + 1}</button><p>${escapeHtml(text)}${badgeHtml}</p><select><option value="point-left">Chỉ trái</option><option value="point-right">Chỉ phải</option><option value="think">Đặt câu hỏi</option><option value="explain-1">Giải thích</option><option value="explain-2">Nhấn mạnh</option><option value="explain-3">Phân tích</option><option value="none">🚫 Không dùng nhân vật</option></select>`;
+    const { displayText } = parsePhoneticText(text);
+    row.innerHTML = `<button type="button">${i + 1}</button><p>${escapeHtml(displayText)}${badgeHtml}</p><select><option value="point-left">Chỉ trái</option><option value="point-right">Chỉ phải</option><option value="think">Đặt câu hỏi</option><option value="explain-1">Giải thích</option><option value="explain-2">Nhấn mạnh</option><option value="explain-3">Phân tích</option><option value="none">🚫 Không dùng nhân vật</option></select>`;
     row.addEventListener("click", (e) => {
       if (e.target.tagName.toLowerCase() === "select") return;
       state.sceneIndex = i;
@@ -342,7 +362,7 @@ function removeImage(side) {
   render();
 }
 
-[els.leftColor, els.rightColor, els.videoBg, els.fontSizeInput, els.actorScaleInput, els.scriptInput, els.voiceSelect, els.styleSelect, els.highlightMode].forEach((item) => { if (item) item.addEventListener("input", render); });
+[els.leftColor, els.rightColor, els.videoBg, els.fontSizeInput, els.actorScaleInput, els.fontSelect, els.scriptInput, els.voiceSelect, els.styleSelect, els.highlightMode].forEach((item) => { if (item) item.addEventListener("input", render); });
 if (els.fontSizeDecBtn) {
   els.fontSizeDecBtn.addEventListener("click", () => {
     const cur = parseInt(els.fontSizeInput.value, 10) || 40;
@@ -534,6 +554,7 @@ function buildRenderConfig() {
     highlight: els.highlightMode.value,
     fontSize: els.fontSizeInput ? (parseInt(els.fontSizeInput.value, 10) || 40) : 40,
     actorScale: els.actorScaleInput ? (parseInt(els.actorScaleInput.value, 10) || 100) : 100,
+    fontFamily: els.fontSelect ? els.fontSelect.value : "Segoe UI, Arial, sans-serif",
     videoBg: els.videoBg.value,
     outputPath: settingsState.outputPath,
     videoName: settingsState.videoName || "riki-scene-output",
@@ -547,9 +568,12 @@ function buildRenderConfig() {
     },
     scenes: list.map((text, i) => {
       const eff = getEffectiveSceneData(i);
+      const { displayText, speechText } = parsePhoneticText(text);
       return {
         id: `scene-${i + 1}`,
         text,
+        displayText,
+        speechText,
         pose: state.poses[i] || "point-left",
         leftTerm: eff.leftTerm,
         rightTerm: eff.rightTerm,
@@ -561,8 +585,37 @@ function buildRenderConfig() {
 }
 
 function setProgress(pct) {
-  els.progressBar.style.width = `${pct}%`;
-  els.progressLabel.textContent = `${pct}%`;
+  if (els.progressBar) els.progressBar.style.width = `${pct}%`;
+  if (els.progressLabel) els.progressLabel.textContent = `${pct}%`;
+  const ring = document.getElementById("progressRingFill");
+  if (ring) {
+    const circumference = 213.6;
+    ring.style.strokeDashoffset = circumference - (pct / 100) * circumference;
+  }
+}
+
+function setStep(stepId, state) {
+  const el = document.getElementById(`step-${stepId}`);
+  if (!el) return;
+  el.classList.remove("render-step--active", "render-step--done", "render-step--error");
+  const badge = el.querySelector(".render-step__badge");
+  const labels = { pending: "chờ", active: "đang xử lý…", done: "✓ xong", error: "lỗi" };
+  if (state === "active") { el.classList.add("render-step--active"); }
+  if (state === "done") { el.classList.add("render-step--done"); }
+  if (state === "error") { el.classList.add("render-step--error"); }
+  if (badge) badge.textContent = labels[state] || state;
+}
+
+function resetSteps() {
+  ["tts", "frames", "video", "done"].forEach((s) => setStep(s, "pending"));
+}
+
+function updateStepByProgress(pct) {
+  if (pct >= 5 && pct < 40) { setStep("tts", "active"); }
+  if (pct >= 40 && pct < 50) { setStep("tts", "done"); setStep("frames", "active"); }
+  if (pct >= 50 && pct < 82) { setStep("tts", "done"); setStep("frames", "active"); }
+  if (pct >= 82 && pct < 100) { setStep("tts", "done"); setStep("frames", "done"); setStep("video", "active"); }
+  if (pct >= 100) { setStep("tts", "done"); setStep("frames", "done"); setStep("video", "done"); setStep("done", "done"); }
 }
 
 function appendLog(data) {
@@ -578,38 +631,47 @@ if (typeof window.electronAPI !== "undefined") {
   window.electronAPI.onLog((data) => {
     appendLog(data);
     if (data.type === "done") {
-      els.renderStatus.textContent = `✓ Hoàn tất: ${data.text}`;
-      els.renderStatus.className = "render-panel__status is-done";
+      els.renderStatus.textContent = `✓ Xuất video hoàn tất!`;
       els.renderOpenBtn.hidden = false;
       els.renderCancelBtn.hidden = true;
     }
     if (data.type === "error") {
-      els.renderStatus.textContent = "✗ Render thất bại";
-      els.renderStatus.className = "render-panel__status is-error";
+      ["tts", "frames", "video"].forEach((s) => {
+        const el = document.getElementById(`step-${s}`);
+        if (el && el.classList.contains("render-step--active")) setStep(s, "error");
+      });
+      els.renderStatus.textContent = "✗ Render thất bại. Xem log chi tiết bên dưới.";
     }
   });
 
   window.electronAPI.onDone((data) => {
     if (data.success) {
       setProgress(100);
+      updateStepByProgress(100);
       els.renderStatus.textContent = `✓ Xuất thành công → ${data.outputFile}`;
-      els.renderStatus.className = "render-panel__status is-done";
       els.renderOpenBtn.hidden = false;
       els.renderCancelBtn.hidden = true;
       els.renderOpenBtn.dataset.filePath = data.outputFile;
     } else {
-      els.renderStatus.textContent = "✗ Render thất bại. Xem log ở trên.";
-      els.renderStatus.className = "render-panel__status is-error";
+      els.renderStatus.textContent = "✗ Render thất bại. Xem log chi tiết bên dưới.";
       els.renderCancelBtn.hidden = false;
     }
   });
 
   window.electronAPI.onProgress((pct) => {
     setProgress(pct);
-    const stages = { 5: "Đang chuẩn bị…", 10: "Đang tạo giọng đọc…", 40: "Hoàn tất TTS, đang ghép audio…", 50: "Đang tạo khung hình…", 65: "Đang chuyển đổi SVG → PNG…", 82: "Đang render video…", 97: "Đang hoàn thiện…", 100: "Hoàn tất!" };
-    if (stages[pct]) {
-      els.renderStatus.textContent = stages[pct];
-    }
+    updateStepByProgress(pct);
+    const stages = { 5: "Đang chuẩn bị…", 10: "Đang tạo giọng đọc (TTS)…", 40: "Hoàn tất TTS, đang dựng khung hình…", 50: "Đang render từng khung hình…", 65: "Đang chuyển đổi SVG → PNG…", 82: "Đang ghép video bằng FFmpeg…", 97: "Đang hoàn thiện…", 100: "Hoàn tất!" };
+    if (stages[pct]) els.renderStatus.textContent = stages[pct];
+  });
+}
+
+if (els.logToggleBtn) {
+  els.logToggleBtn.addEventListener("click", () => {
+    const wrap = els.renderLogWrap;
+    const expanded = els.logToggleBtn.getAttribute("aria-expanded") === "true";
+    els.logToggleBtn.setAttribute("aria-expanded", String(!expanded));
+    if (wrap) wrap.hidden = expanded;
   });
 }
 
@@ -667,11 +729,13 @@ els.settingsConfirmBtn.addEventListener("click", () => {
   els.renderSettings.hidden = true;
   els.renderPanel.hidden = false;
   els.renderLog.innerHTML = "";
+  resetSteps();
   setProgress(0);
   els.renderStatus.textContent = "Đang khởi động renderer…";
-  els.renderStatus.className = "render-panel__status";
   els.renderOpenBtn.hidden = true;
   els.renderCancelBtn.hidden = false;
+  if (els.renderLogWrap) els.renderLogWrap.hidden = true;
+  if (els.logToggleBtn) els.logToggleBtn.setAttribute("aria-expanded", "false");
   window.electronAPI.startRender(buildRenderConfig());
 });
 

@@ -125,6 +125,21 @@ ipcMain.on("render:start", (event, config) => {
   const configPath = path.join(os.tmpdir(), `riki-config-${Date.now()}.json`);
   const outputFile = config.outputPath || path.join(OUTPUT_DIR, `${config.videoName || "riki-scene-output"}.mp4`);
 
+  const resolvedActorImages = {};
+  if (config.actorImages) {
+    for (const [pose, val] of Object.entries(config.actorImages)) {
+      if (val) {
+        if (val.startsWith("data:image/")) {
+          resolvedActorImages[pose] = val;
+        } else if (val.startsWith("../") || val.startsWith("./")) {
+          resolvedActorImages[pose] = path.resolve(ROOT, "prototype-v4", val);
+        } else {
+          resolvedActorImages[pose] = val;
+        }
+      }
+    }
+  }
+
   const manifest = {
     settings: { width: 1080, height: 1920, fps: 24, format: "9:16" },
     title: `${config.leftTerm} và ${config.rightTerm}`,
@@ -139,9 +154,10 @@ ipcMain.on("render:start", (event, config) => {
     highlight: config.highlight || "word",
     fontSize: config.fontSize || 40,
     actorScale: config.actorScale || 100,
+    fontFamily: config.fontFamily || "Segoe UI, Arial, sans-serif",
     outputPath: outputFile,
     videoBg: config.videoBg || "#ffffff",
-    actorImages: config.actorImages || {},
+    actorImages: resolvedActorImages,
     scenes: (config.scenes || []).map((item, i) => ({
       id: `scene-${i + 1}`,
       text: item.text,

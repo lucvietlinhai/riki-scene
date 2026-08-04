@@ -1,8 +1,23 @@
 import argparse
 import json
+import re
 from pathlib import Path
 
 from vieneu import Vieneu
+
+def extract_speech_text(text: str) -> str:
+    if not text:
+        return ""
+    t = re.sub(r'(\S+)\[([^\]]+)\]', r'\2', text)
+    t = re.sub(r'\[([^\]]+)\]', r'\1', t)
+    return t.strip()
+
+def extract_display_text(text: str) -> str:
+    if not text:
+        return ""
+    t = re.sub(r'(\S+)\[([^\]]+)\]', r'\1', text)
+    t = re.sub(r'\[([^\]]+)\]', r'\1', t)
+    return t.strip()
 
 
 def main():
@@ -22,14 +37,18 @@ def main():
     audio_items = []
 
     for index, scene in enumerate(manifest["scenes"]):
-        text = scene["text"].strip()
+        raw_text = scene["text"].strip()
+        speech_text = scene.get("speechText") or extract_speech_text(raw_text)
+        display_text = scene.get("displayText") or extract_display_text(raw_text)
+
         wav_path = out_dir / f"scene-{index + 1:03}.wav"
-        audio = vieneu.infer(text, voice=args.voice, style=args.style)
+        audio = vieneu.infer(speech_text, voice=args.voice, style=args.style)
         vieneu.save(audio, str(wav_path))
         audio_items.append({
             "sceneId": scene.get("id", f"scene-{index + 1}"),
             "index": index,
-            "text": text,
+            "text": display_text,
+            "speechText": speech_text,
             "voice": args.voice,
             "style": args.style,
             "sampleRate": 48000,

@@ -287,6 +287,7 @@ button {
   overflow: hidden;
   padding: 16px 12px 8px;
   background: transparent;
+  font-family: var(--preview-font-family, "Segoe UI", Arial, sans-serif);
 }
 
 .hero-title {
@@ -711,6 +712,26 @@ textarea {
   padding: 12px;
   resize: vertical;
   line-height: 1.6;
+}
+
+.script-tip {
+  margin: 8px 0 0 0;
+  padding: 8px 12px;
+  background: var(--paper-muted);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  color: var(--ink-soft);
+  line-height: 1.5;
+}
+
+.script-tip code {
+  background: var(--teal-pale);
+  color: var(--teal-dark);
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-weight: 700;
+  font-family: monospace;
 }
 
 .scope-header {
@@ -1497,10 +1518,10 @@ textarea {
   position: relative;
   display: flex;
   flex-direction: column;
-  width: min(760px, calc(100vw - 48px));
+  width: min(560px, calc(100vw - 48px));
   max-height: calc(100vh - 80px);
   border-radius: var(--radius-xl);
-  background: #0f2020;
+  background: #0d1c1c;
   border: 1px solid rgba(58, 198, 198, .2);
   box-shadow: 0 32px 80px rgba(0, 0, 0, .7), 0 0 0 1px rgba(58, 198, 198, .1);
   overflow: hidden;
@@ -1539,57 +1560,218 @@ textarea {
   background: rgba(255, 255, 255, .16);
 }
 
-.render-panel__status {
-  padding: 12px 22px;
-  background: rgba(58, 198, 198, .12);
-  border-bottom: 1px solid rgba(58, 198, 198, .2);
+.render-progress {
+  display: flex;
+  align-items: flex-start;
+  gap: 24px;
+  padding: 24px 22px 16px;
+}
+
+.render-progress__visual {
+  flex-shrink: 0;
+}
+
+.render-progress__ring {
+  position: relative;
+  width: 80px;
+  height: 80px;
+}
+
+.render-ring-svg {
+  width: 80px;
+  height: 80px;
+  transform: rotate(-90deg);
+}
+
+.render-ring-svg__track {
+  fill: none;
+  stroke: rgba(255, 255, 255, .08);
+  stroke-width: 6;
+}
+
+.render-ring-svg__fill {
+  fill: none;
+  stroke: url(#ringGrad);
+  stroke: var(--teal);
+  stroke-width: 6;
+  stroke-linecap: round;
+  transition: stroke-dashoffset .5s ease;
+}
+
+.render-progress__ring-pct {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 800;
   color: var(--teal-light);
+  font-variant-numeric: tabular-nums;
+}
+
+.render-progress__info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+
+.render-progress__status {
+  margin: 0;
+  font-size: 14px;
   font-weight: 600;
-  font-size: 13.5px;
+  color: rgba(255, 255, 255, .9);
+  line-height: 1.4;
 }
 
-.render-panel__status.is-done {
-  background: rgba(58, 200, 120, .12);
-  border-color: rgba(58, 200, 120, .2);
-  color: #6ee8a0;
+.render-progress__bar-wrap {
+  padding: 2px 0;
 }
 
-.render-panel__status.is-error {
-  background: rgba(220, 60, 40, .12);
-  border-color: rgba(220, 60, 40, .2);
-  color: #f08060;
-}
-
-.render-panel__progress-wrap {
-  height: 4px;
+.render-progress__bar-track {
+  height: 5px;
+  border-radius: 99px;
   background: rgba(255, 255, 255, .08);
   overflow: hidden;
 }
 
-.render-panel__progress-bar {
+.render-progress__bar-fill {
   height: 100%;
   width: 0;
+  border-radius: 99px;
   background: linear-gradient(90deg, var(--teal), var(--teal-light));
   transition: width .4s ease;
 }
 
-.render-panel__progress-label {
-  padding: 6px 22px 4px;
-  color: rgba(255, 255, 255, .35);
-  font-size: 11.5px;
+.render-steps {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.render-step {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  background: rgba(255, 255, 255, .03);
+  transition: background .2s, border-color .2s;
+}
+
+.render-step__icon {
+  font-size: 15px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.render-step__label {
+  flex: 1;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, .45);
+  transition: color .2s;
+}
+
+.render-step__badge {
+  font-size: 11px;
   font-weight: 700;
-  font-variant-numeric: tabular-nums;
+  padding: 2px 8px;
+  border-radius: 99px;
+  background: rgba(255, 255, 255, .07);
+  color: rgba(255, 255, 255, .3);
+  transition: background .2s, color .2s;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+
+.render-step--active {
+  background: rgba(58, 198, 198, .1);
+  border-color: rgba(58, 198, 198, .25);
+}
+
+.render-step--active .render-step__label {
+  color: var(--teal-light);
+}
+
+.render-step--active .render-step__badge {
+  background: var(--teal);
+  color: #000;
+  animation: pulse-badge 1.2s ease-in-out infinite;
+}
+
+.render-step--done .render-step__label {
+  color: rgba(255, 255, 255, .65);
+}
+
+.render-step--done .render-step__badge {
+  background: rgba(100, 220, 140, .15);
+  color: #6ee8a0;
+}
+
+.render-step--error .render-step__badge {
+  background: rgba(240, 100, 60, .15);
+  color: #f08060;
+}
+
+@keyframes pulse-badge {
+  0%, 100% { opacity: 1; }
+  50% { opacity: .55; }
+}
+
+.render-log-toggle {
+  border-top: 1px solid rgba(58, 198, 198, .1);
+}
+
+.render-log-toggle__btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 10px 22px;
+  background: transparent;
+  border: 0;
+  color: rgba(255, 255, 255, .3);
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  transition: color .15s;
+  text-align: left;
+}
+
+.render-log-toggle__btn:hover {
+  color: rgba(255, 255, 255, .6);
+}
+
+.render-log-toggle__btn svg {
+  transition: transform .2s ease;
+  flex-shrink: 0;
+}
+
+.render-log-toggle__btn[aria-expanded="true"] svg {
+  transform: rotate(180deg);
+}
+
+.render-log-collapse[hidden] {
+  display: none;
 }
 
 .render-panel__log {
-  flex: 1;
   overflow-y: auto;
-  padding: 14px 22px;
+  padding: 12px 22px 16px;
   font-family: 'Cascadia Code', 'Consolas', monospace;
-  font-size: 12.5px;
+  font-size: 11.5px;
   line-height: 1.65;
-  min-height: 240px;
-  max-height: 380px;
+  min-height: 160px;
+  max-height: 260px;
+  border-top: 1px solid rgba(58, 198, 198, .08);
 }
 
 .render-panel__log::-webkit-scrollbar {
@@ -1612,7 +1794,7 @@ textarea {
 }
 
 .render-panel__log-line--out {
-  color: rgba(255, 255, 255, .65);
+  color: rgba(255, 255, 255, .55);
 }
 
 .render-panel__log-line--err {

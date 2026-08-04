@@ -1,4 +1,4 @@
-# 🎬 Riki Scene — Xưởng Tạo Video Ngắn Tự Động
+# 🎬 Riki Scene — Công cụ tạo video so sánh
 
 **Riki Scene** là ứng dụng Desktop cross-platform (chạy trên cả **Windows** và **macOS**) hỗ trợ biên tập và kết xuất video ngắn dạng dọc (tỷ lệ chuẩn **9:16 - 1080x1920**) dùng cho Tiktok, Shorts, Reels. Ứng dụng tích hợp bộ đọc giọng nói tiếng Việt mượt mà chạy **offline hoàn toàn trên CPU (VieNeu-TTS ONNX)** mà không cần kết nối internet hay GPU đắt tiền.
 

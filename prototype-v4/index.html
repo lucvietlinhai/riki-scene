@@ -7,7 +7,7 @@
   <title>Riki Scene - Kết xuất giọng đọc local</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap"
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Be+Vietnam+Pro:wght@400;700;900&family=Nunito:wght@400;700;900&family=Montserrat:wght@400;700;900&family=Baloo+2:wght@400;700;800&display=swap"
     rel="stylesheet" />
   <link rel="stylesheet" href="./styles.css" />
 </head>
@@ -160,6 +160,19 @@
         <div class="panel__section">
           <h2 class="panel__title">Kích thước chữ, Nhân vật &amp; Màu nền</h2>
           <div class="style-config-grid">
+            <label class="field-label">Font chữ video
+              <select id="fontSelect">
+                <option value="Segoe UI, Arial, sans-serif">Segoe UI (Mặc định)</option>
+                <option value="Be Vietnam Pro, Arial, sans-serif">Be Vietnam Pro</option>
+                <option value="Nunito, Arial, sans-serif">Nunito</option>
+                <option value="Montserrat, Arial, sans-serif">Montserrat</option>
+                <option value="Baloo 2, Arial, sans-serif">Baloo 2 (Tròn trịa)</option>
+                <option value="SVN-Gotham, Gotham, Arial, sans-serif">SVN-Gotham</option>
+                <option value="UTM Avo, Arial, sans-serif">UTM Avo</option>
+                <option value="Arial, sans-serif">Arial</option>
+                <option value="Georgia, serif">Georgia (Serif)</option>
+              </select>
+            </label>
             <label class="field-label">Cỡ chữ thuyết minh (px)
               <div class="font-size-control">
                 <button id="fontSizeDecBtn" type="button" class="btn-step">-</button>
@@ -273,15 +286,6 @@
             </button>
           </div>
         </div>
-        <div class="voice-note">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-            stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="12" cy="12" r="10" />
-            <line x1="12" y1="8" x2="12" y2="12" />
-            <line x1="12" y1="16" x2="12.01" y2="16" />
-          </svg>
-          Renderer dùng giọng local để tạo WAV từng cảnh, đo thời lượng thật rồi kết xuất MP4 theo audio.
-        </div>
       </div>
 
       <div class="panel" id="scenePanel">
@@ -378,6 +382,7 @@
       <textarea id="scriptInput" spellcheck="false">Khách quan là cách nhìn sự việc đúng như nó đang diễn ra.
 Chủ quan là góc nhìn chịu ảnh hưởng bởi cảm xúc và kinh nghiệm cá nhân.
 Khi so sánh hai khái niệm, hãy nhìn vào điểm khác nhau trong cách đánh giá.</textarea>
+      <p class="script-tip">💡 <strong>Mẹo ngoại ngữ:</strong> Dùng <code>TừNgoạiNgữ[phiên âm]</code> — ví dụ: <code>きっと[kít tồ]</code></p>
       <div class="timeline" id="timeline"></div>
     </aside>
   </main>
@@ -389,16 +394,65 @@ Khi so sánh hai khái niệm, hãy nhìn vào điểm khác nhau trong cách đ
         <strong>Kết xuất video</strong>
         <button class="render-panel__close" id="renderPanelClose" type="button" aria-label="Đóng">×</button>
       </div>
-      <div class="render-panel__status" id="renderStatus">Đang chuẩn bị…</div>
-      <div class="render-panel__progress-wrap">
-        <div class="render-panel__progress-bar" id="progressBar"></div>
+
+      <div class="render-progress">
+        <div class="render-progress__visual">
+          <div class="render-progress__ring">
+            <svg viewBox="0 0 80 80" class="render-ring-svg" aria-hidden="true">
+              <circle class="render-ring-svg__track" cx="40" cy="40" r="34" />
+              <circle class="render-ring-svg__fill" id="progressRingFill" cx="40" cy="40" r="34"
+                stroke-dasharray="213.6" stroke-dashoffset="213.6" />
+            </svg>
+            <span class="render-progress__ring-pct" id="progressLabel">0%</span>
+          </div>
+        </div>
+
+        <div class="render-progress__info">
+          <p class="render-progress__status" id="renderStatus">Đang chuẩn bị…</p>
+          <div class="render-progress__bar-wrap">
+            <div class="render-progress__bar-track">
+              <div class="render-progress__bar-fill" id="progressBar"></div>
+            </div>
+          </div>
+
+          <ol class="render-steps" id="renderSteps">
+            <li class="render-step" id="step-tts" data-step="tts">
+              <span class="render-step__icon">🎙️</span>
+              <span class="render-step__label">Tạo giọng đọc (TTS)</span>
+              <span class="render-step__badge">chờ</span>
+            </li>
+            <li class="render-step" id="step-frames" data-step="frames">
+              <span class="render-step__icon">🖼️</span>
+              <span class="render-step__label">Dựng khung hình</span>
+              <span class="render-step__badge">chờ</span>
+            </li>
+            <li class="render-step" id="step-video" data-step="video">
+              <span class="render-step__icon">🎬</span>
+              <span class="render-step__label">Ghép video (FFmpeg)</span>
+              <span class="render-step__badge">chờ</span>
+            </li>
+            <li class="render-step" id="step-done" data-step="done">
+              <span class="render-step__icon">✅</span>
+              <span class="render-step__label">Hoàn tất</span>
+              <span class="render-step__badge">chờ</span>
+            </li>
+          </ol>
+        </div>
       </div>
-      <div class="render-panel__progress-label" id="progressLabel">0%</div>
-      <div class="render-panel__log" id="renderLog" aria-live="polite"></div>
+
+      <div class="render-log-toggle">
+        <button class="render-log-toggle__btn" id="logToggleBtn" type="button" aria-expanded="false">
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M2 4l4 4 4-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Xem chi tiết kỹ thuật
+        </button>
+        <div class="render-log-collapse" id="renderLogWrap" hidden>
+          <div class="render-panel__log" id="renderLog" aria-live="polite"></div>
+        </div>
+      </div>
+
       <div class="render-panel__foot">
         <button class="render-panel__btn render-panel__btn--cancel" id="renderCancelBtn" type="button">Hủy</button>
-        <button class="render-panel__btn render-panel__btn--open" id="renderOpenBtn" type="button" hidden>Mở file
-          video</button>
+        <button class="render-panel__btn render-panel__btn--open" id="renderOpenBtn" type="button" hidden>▶ Mở file video</button>
       </div>
     </div>
   </div>
@@ -446,7 +500,7 @@ Khi so sánh hai khái niệm, hãy nhìn vào điểm khác nhau trong cách đ
           <span class="brand__logo brand__logo--lg">R</span>
           <div>
             <h3 class="info-app-title">Riki Scene</h3>
-            <p class="info-app-subtitle">Xưởng Tạo Video Ngắn Tự Động</p>
+            <p class="info-app-subtitle">Công cụ tạo video so sánh</p>
           </div>
         </div>
         <div class="info-details-card">

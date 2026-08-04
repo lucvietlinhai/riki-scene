@@ -20,7 +20,7 @@ const combinedAudio = path.join(workDir, "voice.wav");
 const width = 1080;
 const height = 1920;
 const fps = 24;
-const fontFamily = "Segoe UI, Arial, sans-serif";
+const defaultFontFamily = "Segoe UI, Arial, sans-serif";
 
 function parseArgs() {
   const args = process.argv.slice(2);
@@ -108,6 +108,9 @@ async function main() {
           actorFilePaths[pose] = filePath.replace(/\\/g, "/");
           console.log(`[render] Saved actor image for pose "${pose}" to: ${actorFilePaths[pose]}`);
         }
+      } else if (base64Data && fs.existsSync(base64Data)) {
+        actorFilePaths[pose] = base64Data.replace(/\\/g, "/");
+        console.log(`[render] Using local actor file for pose "${pose}": ${actorFilePaths[pose]}`);
       }
     }
   }
@@ -261,9 +264,22 @@ async function writeFrames(items, actorFilePaths, imagePaths) {
   }
 }
 
+function extractDisplayText(text) {
+  if (!text) return "";
+  return text.replace(/(\S+)\[([^\]]+)\]/g, "$1").replace(/\[([^\]]+)\]/g, "$1").trim();
+}
+
+function extractSpeechText(text) {
+  if (!text) return "";
+  return text.replace(/(\S+)\[([^\]]+)\]/g, "$2").replace(/\[([^\]]+)\]/g, "$1").trim();
+}
+
 function makeFrame(scene, sceneIndex, progress, totalScenes, duration, actorFilePaths, imagePaths) {
-  const activeWord = activeWordIndex(scene.text, progress);
+  const speechText = scene.speechText || extractSpeechText(scene.text);
+  const displayText = scene.displayText || extractDisplayText(scene.text);
+  const activeWord = activeWordIndex(speechText, progress);
   const videoBg = manifest.videoBg || "#ffffff";
+  const fontFamily = manifest.fontFamily || defaultFontFamily;
   const leftTerm = scene.leftTerm || manifest.leftTerm || "Trái";
   const rightTerm = scene.rightTerm || manifest.rightTerm || "Phải";
   const sceneImagePaths = {
@@ -320,7 +336,7 @@ function makeFrame(scene, sceneIndex, progress, totalScenes, duration, actorFile
 
   ${illustrationMarkup}
 
-  ${highlightText(scene.text, activeWord, 175, highlightY, highlightWidth, 54, highlightFontSize)}
+  ${highlightText(displayText, activeWord, 175, highlightY, highlightWidth, 54, highlightFontSize, fontFamily)}
 
   ${actorMarkup}
 </svg>`;
@@ -346,7 +362,7 @@ function rightIllustration(imagePaths) {
   return "";
 }
 
-function highlightText(text, activeIndex, x, y, maxWidth, lineHeight, customFontSize) {
+function highlightText(text, activeIndex, x, y, maxWidth, lineHeight, customFontSize, resolvedFontFamily) {
   const normalized = text.normalize("NFC");
   const words = normalized.split(/\s+/).filter(Boolean);
   const fontSize = customFontSize || manifest.fontSize || 40;
@@ -360,7 +376,8 @@ function highlightText(text, activeIndex, x, y, maxWidth, lineHeight, customFont
     for (const word of lines[lineIndex].words) {
       const current = wordIndex === activeIndex;
       const fill = current ? "#3ac6c6" : "#202525";
-      chunks.push(`<text x="${cursor}" y="${y + lineIndex * effectiveLineHeight}" font-family="${fontFamily}" font-size="${current ? activeFontSize : fontSize}" font-weight="${current ? 900 : 700}" fill="${fill}">${escapeXml(word.text)}</text>`);
+      const ff = resolvedFontFamily || defaultFontFamily;
+      chunks.push(`<text x="${cursor}" y="${y + lineIndex * effectiveLineHeight}" font-family="${ff}" font-size="${current ? activeFontSize : fontSize}" font-weight="${current ? 900 : 700}" fill="${fill}">${escapeXml(word.text)}</text>`);
       const actualWordWidth = estimateWidth(word.text, current ? activeFontSize : fontSize);
       cursor += actualWordWidth + 18;
       wordIndex += 1;
