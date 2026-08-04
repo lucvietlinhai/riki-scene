@@ -72,8 +72,10 @@ riki-scene/
 ├── electron-main.js           # Tiến trình chính Electron (IPC Main Process)
 ├── preload.js                 # Cầu nối an toàn IPC Bridge між UI và Node.js
 ├── setup-binaries.js          # Script tự động cài đặt uv & môi trường TTS
-├── start.bat                  # File tự động khởi chạy 1-click cho Windows
-├── start.command              # File tự động khởi chạy 1-click cho macOS
+├── start.bat                  # File tự động cài đặt & khởi chạy (Dành cho lần đầu)
+├── start.command              # (Dành cho macOS)
+├── run.bat                    # File khởi chạy nhanh ứng dụng (Cho các lần sau)
+├── run.command                # (Dành cho macOS)
 └── package.json               # Khai báo thư viện & các lệnh npm script
 ```
 
@@ -86,37 +88,29 @@ riki-scene/
 
 ### 🪟 Dành cho Windows
 
-#### Cách 1: Click-to-Run (Khuyên dùng)
-Double-click (nhấp kép) vào file **`start.bat`** tại thư mục dự án. Cửa sổ terminal sẽ tự động cài đặt thư viện cần thiết ở lần đầu và mở ứng dụng.
+#### Cài đặt lần đầu (hoặc khi cần cài đặt lại)
+Double-click vào file **`start.bat`** tại thư mục dự án. Cửa sổ terminal sẽ tự động cài đặt thư viện cần thiết và mở ứng dụng.
 
-#### Cách 2: Chạy bằng Lệnh Terminal
-```bash
-# 1. Cài đặt các thư viện Node.js & công cụ phụ trợ (Chỉ cần chạy 1 lần đầu)
-npm run setup
-
-# 2. Khởi chạy ứng dụng
-npm start
-```
+#### Khởi chạy nhanh (Cho các lần sử dụng tiếp theo)
+Double-click trực tiếp vào file **`run.bat`** để khởi chạy ngay ứng dụng mà không cần qua các bước kiểm tra và cài đặt lại.
 
 ---
 
 ### 🍎 Dành cho macOS
 
-#### Cách 1: Click-to-Run
+#### Cài đặt lần đầu (hoặc khi cần cài đặt lại)
 1. Lần đầu tiên mở dự án, cần cấp quyền thực thi cho file `start.command` trong Terminal:
    ```bash
    chmod +x start.command
    ```
-2. Sau đó, chỉ cần **Double-click file `start.command`** trong Finder để chạy ứng dụng.
+2. Sau đó, double-click file **`start.command`** trong Finder để khởi chạy và tự động thiết lập.
 
-#### Cách 2: Chạy bằng Lệnh Terminal
-```bash
-# 1. Cài đặt các thư viện Node.js & môi trường TTS
-npm run setup
-
-# 2. Khởi chạy ứng dụng
-npm start
-```
+#### Khởi chạy nhanh (Cho các lần sử dụng tiếp theo)
+1. Cấp quyền thực thi cho file `run.command` trong Terminal:
+   ```bash
+   chmod +x run.command
+   ```
+2. Sau đó, double-click file **`run.command`** để khởi chạy ngay lập tức.
 
 ---
 
