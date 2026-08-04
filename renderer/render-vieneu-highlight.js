@@ -368,6 +368,7 @@ function highlightText(text, activeIndex, x, y, maxWidth, lineHeight, customFont
   const fontSize = customFontSize || manifest.fontSize || 40;
   const activeFontSize = Math.round(fontSize * 1.1);
   const effectiveLineHeight = Math.max(lineHeight || 54, Math.round(fontSize * 1.35));
+  const spaceWidth = Math.round(fontSize * 0.28);
   const lines = layoutWords(words, maxWidth, fontSize);
   let wordIndex = 0;
   const chunks = [];
@@ -379,7 +380,7 @@ function highlightText(text, activeIndex, x, y, maxWidth, lineHeight, customFont
       const ff = resolvedFontFamily || defaultFontFamily;
       chunks.push(`<text x="${cursor}" y="${y + lineIndex * effectiveLineHeight}" font-family="${ff}" font-size="${current ? activeFontSize : fontSize}" font-weight="${current ? 900 : 700}" fill="${fill}">${escapeXml(word.text)}</text>`);
       const actualWordWidth = estimateWidth(word.text, current ? activeFontSize : fontSize);
-      cursor += actualWordWidth + 18;
+      cursor += actualWordWidth + spaceWidth;
       wordIndex += 1;
     }
   }
@@ -388,16 +389,17 @@ function highlightText(text, activeIndex, x, y, maxWidth, lineHeight, customFont
 
 function layoutWords(words, maxWidth, size) {
   const lines = [];
+  const spaceWidth = Math.round(size * 0.28);
   let current = { words: [], width: 0 };
   for (const word of words) {
     const width = estimateWidth(word, size);
-    const nextWidth = current.words.length ? current.width + 18 + width : width;
+    const nextWidth = current.words.length ? current.width + spaceWidth + width : width;
     if (nextWidth > maxWidth && current.words.length) {
       lines.push(current);
       current = { words: [], width: 0 };
     }
     current.words.push({ text: word, width });
-    current.width = current.words.length === 1 ? width : current.width + 18 + width;
+    current.width = current.words.length === 1 ? width : current.width + spaceWidth + width;
   }
   if (current.words.length) lines.push(current);
   return lines.slice(0, 4);

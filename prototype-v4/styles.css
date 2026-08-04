@@ -346,7 +346,7 @@ button {
 
 .read-box .word {
   display: inline-block;
-  padding: 1px 4px;
+  padding: 1px 1.5px;
   color: var(--ink);
   transition: color .14s ease, transform .14s ease, font-size .14s ease;
 }
