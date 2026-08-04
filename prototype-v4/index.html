@@ -269,6 +269,15 @@
                 <option value="line">Đổi màu cả dòng</option>
               </select>
             </label>
+            <label class="field-label">Tốc độ đọc
+              <select id="speechRateSelect">
+                <option value="0.8">0.8x — Đọc chậm</option>
+                <option value="1.0" selected>1.0x — Bình thường</option>
+                <option value="1.15">1.15x — Nhanh vừa</option>
+                <option value="1.3">1.3x — Nhanh</option>
+                <option value="1.5">1.5x — Rất nhanh</option>
+              </select>
+            </label>
           </div>
           <div class="voice-preview-row">
             <button id="previewVoiceBtn" type="button" class="btn-voice-preview">
@@ -377,7 +386,35 @@
       <textarea id="scriptInput" spellcheck="false">Khách quan là cách nhìn sự việc đúng như nó đang diễn ra.
 Chủ quan là góc nhìn chịu ảnh hưởng bởi cảm xúc và kinh nghiệm cá nhân.
 Khi so sánh hai khái niệm, hãy nhìn vào điểm khác nhau trong cách đánh giá.</textarea>
-      <p class="script-tip">💡 <strong>Mẹo ngoại ngữ:</strong> Dùng <code>TừNgoạiNgữ[phiên âm]</code> — ví dụ: <code>きっと[kít tồ]</code></p>
+      <div class="script-tip">
+        <div class="script-tip__row">
+          <span>💡 <strong>Phát âm mặc định cho [...]:</strong></span>
+          <select id="bracketLangSelect" class="script-tip__select">
+            <option value="auto">Tự động nhận diện</option>
+            <option value="en">Tiếng Anh (Edge-TTS)</option>
+            <option value="ja">Tiếng Nhật (Edge-TTS)</option>
+          </select>
+        </div>
+        <div class="script-tip__row">
+          <span>🎙️ <strong>Giọng đọc ngoại ngữ:</strong></span>
+          <div class="script-tip__voices">
+            <select id="jaVoiceSelect" class="script-tip__select" title="Giọng đọc Tiếng Nhật">
+              <option value="ja-JP-NanamiNeural">🇯🇵 Nữ (Nanami)</option>
+              <option value="ja-JP-KeitaNeural">🇯🇵 Nam (Keita)</option>
+              <option value="ja-JP-AoiNeural">🇯🇵 Nữ (Aoi)</option>
+              <option value="ja-JP-DaichiNeural">🇯🇵 Nam (Daichi)</option>
+            </select>
+            <select id="enVoiceSelect" class="script-tip__select" title="Giọng đọc Tiếng Anh">
+              <option value="en-US-AriaNeural">🇺🇸 Nữ Mỹ (Aria)</option>
+              <option value="en-US-GuyNeural">🇺🇸 Nam Mỹ (Guy)</option>
+              <option value="en-US-JennyNeural">🇺🇸 Nữ Mỹ (Jenny)</option>
+              <option value="en-GB-RyanNeural">🇬🇧 Nam Anh (Ryan)</option>
+              <option value="en-GB-SoniaNeural">🇬🇧 Nữ Anh (Sonia)</option>
+            </select>
+          </div>
+        </div>
+        <p class="script-tip__desc">💡 Đặt từ/cụm từ cần phát âm trong <code>[...]</code> và chọn ngôn ngữ ở menu trên, hoặc viết dạng <code>Từ[phiên âm]</code>.</p>
+      </div>
       <div class="timeline" id="timeline"></div>
     </aside>
   </main>

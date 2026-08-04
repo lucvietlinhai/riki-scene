@@ -14,6 +14,31 @@ const state = {
 };
 const els = Object.fromEntries([...document.querySelectorAll("[id]")].map((el) => [el.id, el]));
 
+if (els.bracketLangSelect) {
+  els.bracketLangSelect.value = localStorage.getItem("riki:settings:bracket-lang") || "auto";
+  els.bracketLangSelect.addEventListener("change", () => {
+    localStorage.setItem("riki:settings:bracket-lang", els.bracketLangSelect.value);
+  });
+}
+if (els.jaVoiceSelect) {
+  els.jaVoiceSelect.value = localStorage.getItem("riki:settings:ja-voice") || "ja-JP-NanamiNeural";
+  els.jaVoiceSelect.addEventListener("change", () => {
+    localStorage.setItem("riki:settings:ja-voice", els.jaVoiceSelect.value);
+  });
+}
+if (els.enVoiceSelect) {
+  els.enVoiceSelect.value = localStorage.getItem("riki:settings:en-voice") || "en-US-AriaNeural";
+  els.enVoiceSelect.addEventListener("change", () => {
+    localStorage.setItem("riki:settings:en-voice", els.enVoiceSelect.value);
+  });
+}
+if (els.speechRateSelect) {
+  els.speechRateSelect.value = localStorage.getItem("riki:settings:speech-rate") || "1.0";
+  els.speechRateSelect.addEventListener("change", () => {
+    localStorage.setItem("riki:settings:speech-rate", els.speechRateSelect.value);
+  });
+}
+
 const actorState = {
   "point-left": localStorage.getItem("riki:actor:point-left") || "../assets/riki-left.png",
   "point-right": localStorage.getItem("riki:actor:point-right") || "../assets/riki-right.png",
@@ -33,14 +58,21 @@ const settingsState = {
 
 function parsePhoneticText(rawText) {
   if (!rawText) return { displayText: "", speechText: "" };
-  const displayText = rawText
-    .replace(/(\S+)\[([^\]]+)\]/g, "$1")
-    .replace(/\[([^\]]+)\]/g, "$1")
-    .trim();
-  const speechText = rawText
-    .replace(/(\S+)\[([^\]]+)\]/g, "$2")
-    .replace(/\[([^\]]+)\]/g, "$1")
-    .trim();
+  let displayText = rawText.replace(/(\S+)\[([^\]]+)\]/g, "$1");
+  let speechText = rawText.replace(/(\S+)\[([^\]]+)\]/g, "$2");
+  
+  const parseStandaloneBrackets = (t) => {
+    return t.replace(/\[([^\]]+)\]/g, (match, content) => {
+      let trimmed = content.trim();
+      if (trimmed.toLowerCase().startsWith("ja:")) return trimmed.slice(3).trim();
+      if (trimmed.toLowerCase().startsWith("en:")) return trimmed.slice(3).trim();
+      if (trimmed.toLowerCase().startsWith("vi:")) return trimmed.slice(3).trim();
+      return trimmed;
+    });
+  };
+  
+  displayText = parseStandaloneBrackets(displayText).trim();
+  speechText = parseStandaloneBrackets(speechText).trim();
   return { displayText, speechText };
 }
 
@@ -362,7 +394,7 @@ function removeImage(side) {
   render();
 }
 
-[els.leftColor, els.rightColor, els.videoBg, els.fontSizeInput, els.actorScaleInput, els.fontSelect, els.scriptInput, els.voiceSelect, els.styleSelect, els.highlightMode].forEach((item) => { if (item) item.addEventListener("input", render); });
+[els.leftColor, els.rightColor, els.videoBg, els.fontSizeInput, els.actorScaleInput, els.fontSelect, els.scriptInput, els.voiceSelect, els.styleSelect, els.highlightMode, els.bracketLangSelect, els.jaVoiceSelect, els.enVoiceSelect, els.speechRateSelect].forEach((item) => { if (item) item.addEventListener("input", render); });
 if (els.fontSizeDecBtn) {
   els.fontSizeDecBtn.addEventListener("click", () => {
     const cur = parseInt(els.fontSizeInput.value, 10) || 40;
@@ -512,7 +544,14 @@ if (els.previewVoiceBtn) {
       if (btnSpan) btnSpan.textContent = "Đang tạo giọng mẫu…";
 
       try {
-        const result = await window.electronAPI.previewVoice({ voice, style });
+        const result = await window.electronAPI.previewVoice({
+          voice,
+          style,
+          bracketLang: els.bracketLangSelect ? els.bracketLangSelect.value : "auto",
+          jaVoice: els.jaVoiceSelect ? els.jaVoiceSelect.value : "ja-JP-NanamiNeural",
+          enVoice: els.enVoiceSelect ? els.enVoiceSelect.value : "en-US-AriaNeural",
+          speechRate: els.speechRateSelect ? parseFloat(els.speechRateSelect.value) || 1.0 : 1.0,
+        });
         if (result && result.success && result.audio) {
           currentPreviewAudio = new Audio(result.audio);
           currentPreviewAudio.play();
@@ -557,6 +596,10 @@ function buildRenderConfig() {
     fontFamily: els.fontSelect ? els.fontSelect.value : "Segoe UI, Arial, sans-serif",
     videoBg: els.videoBg.value,
     outputPath: settingsState.outputPath,
+    bracketLang: els.bracketLangSelect ? els.bracketLangSelect.value : "auto",
+    jaVoice: els.jaVoiceSelect ? els.jaVoiceSelect.value : "ja-JP-NanamiNeural",
+    enVoice: els.enVoiceSelect ? els.enVoiceSelect.value : "en-US-AriaNeural",
+    speechRate: els.speechRateSelect ? parseFloat(els.speechRateSelect.value) || 1.0 : 1.0,
     videoName: settingsState.videoName || "riki-scene-output",
     actorImages: {
       "point-left": actorState["point-left"],

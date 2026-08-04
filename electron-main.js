@@ -6,6 +6,7 @@ const os = require("os");
 
 const ROOT = path.resolve(__dirname);
 const OUTPUT_DIR = path.join(ROOT, "output");
+const ffmpegPath = (() => { try { return require("ffmpeg-static"); } catch { return "ffmpeg"; } })();
 
 let mainWindow = null;
 let activeRender = null;
@@ -74,7 +75,7 @@ function ensureTTSEnvironment() {
   return fs.existsSync(uvBin) ? uvBin : "uv";
 }
 
-ipcMain.handle("voice:preview", async (_event, { voice, style, text }) => {
+ipcMain.handle("voice:preview", async (_event, { voice, style, text, bracketLang, jaVoice, enVoice, speechRate }) => {
   const sampleText = text || `Xin chào, đây là giọng đọc ${voice}, chúc bạn tạo ra những video tuyệt vời!`;
   const outWav = path.join(os.tmpdir(), `voice-preview-${Date.now()}.wav`);
   const uvCmd = ensureTTSEnvironment();
@@ -87,7 +88,12 @@ ipcMain.handle("voice:preview", async (_event, { voice, style, text }) => {
       "--voice", voice || "Minh Đức",
       "--style", style || "tin_tuc",
       "--text", sampleText,
-      "--out-wav", outWav
+      "--out-wav", outWav,
+      "--ffmpeg-path", ffmpegPath,
+      "--bracket-lang", bracketLang || "auto",
+      "--ja-voice", jaVoice || "ja-JP-NanamiNeural",
+      "--en-voice", enVoice || "en-US-AriaNeural",
+      "--speech-rate", String(speechRate || 1.0)
     ], {
       cwd: path.join(ROOT, "local-tts", "VieNeu-TTS"),
       env: { ...process.env, PYTHONIOENCODING: "utf-8" }
@@ -158,6 +164,10 @@ ipcMain.on("render:start", (event, config) => {
     outputPath: outputFile,
     videoBg: config.videoBg || "#ffffff",
     actorImages: resolvedActorImages,
+    bracketLang: config.bracketLang || "auto",
+    jaVoice: config.jaVoice || "ja-JP-NanamiNeural",
+    enVoice: config.enVoice || "en-US-AriaNeural",
+    speechRate: config.speechRate || 1.0,
     scenes: (config.scenes || []).map((item, i) => ({
       id: `scene-${i + 1}`,
       text: item.text,

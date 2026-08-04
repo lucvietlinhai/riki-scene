@@ -132,7 +132,8 @@ async function main() {
     "--manifest", manifestPath,
     "--out-dir", audioDir,
     "--voice", voice,
-    "--style", style
+    "--style", style,
+    "--ffmpeg-path", ffmpegPath
   ], path.join(root, "local-tts", "VieNeu-TTS"), { PYTHONIOENCODING: "utf-8" });
 
   console.log("[PROGRESS:40]");
