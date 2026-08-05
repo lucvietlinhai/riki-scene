@@ -14,10 +14,55 @@ const state = {
 };
 const els = Object.fromEntries([...document.querySelectorAll("[id]")].map((el) => [el.id, el]));
 
+const vieneuVoices = [
+  { value: "Minh Đức", text: "Minh Đức — Nam · Bắc · Tin tức" },
+  { value: "Phạm Tuyên", text: "Phạm Tuyên — Nam · Bắc · Tự nhiên" },
+  { value: "Thái Sơn", text: "Thái Sơn — Nam · Nam · Kể chuyện" },
+  { value: "Xuân Vĩnh", text: "Xuân Vĩnh — Nam · Nam · Tự nhiên" },
+  { value: "Thanh Bình", text: "Thanh Bình — Nam · Bắc · Kể chuyện" },
+  { value: "Trúc Ly", text: "Trúc Ly — Nữ · Bắc · Tự nhiên" },
+  { value: "Ngọc Linh", text: "Ngọc Linh — Nữ · Bắc · Kể chuyện" },
+  { value: "Đoan Trang", text: "Đoan Trang — Nữ · Bắc · Tự nhiên" },
+  { value: "Mai Anh", text: "Mai Anh — Nữ · Bắc · Tin tức" },
+  { value: "Thục Đoan", text: "Thục Đoan — Nữ · Nam · Kể chuyện" },
+  { value: "Minh Triết", text: "Minh Triết — Nam · Nam · Tin tức" },
+  { value: "Thùy Dung", text: "Thùy Dung — Nữ · Nam · Tin tức" },
+  { value: "Quang Sơn", text: "Quang Sơn — Nam · Trung · Tự nhiên" },
+  { value: "Ngọc Trân", text: "Ngọc Trân — Nữ · Trung · Tự nhiên" }
+];
+
+function updateVoiceDropdown() {
+  if (!els.ttsEngineSelect || !els.voiceSelect) return;
+  const currentVal = els.voiceSelect.value;
+  els.voiceSelect.innerHTML = "";
+  vieneuVoices.forEach((v) => {
+    const opt = document.createElement("option");
+    opt.value = v.value;
+    opt.textContent = v.text;
+    els.voiceSelect.appendChild(opt);
+  });
+  if (vieneuVoices.some((v) => v.value === currentVal)) {
+    els.voiceSelect.value = currentVal;
+  } else {
+    els.voiceSelect.value = vieneuVoices[0].value;
+  }
+}
+
+if (els.ttsEngineSelect) {
+  els.ttsEngineSelect.addEventListener("change", () => {
+    updateVoiceDropdown();
+    render();
+  });
+}
+
+
 if (els.bracketLangSelect) {
-  els.bracketLangSelect.value = localStorage.getItem("riki:settings:bracket-lang") || "auto";
+  let savedLang = localStorage.getItem("riki:settings:bracket-lang") || "none";
+  if (savedLang === "auto") savedLang = "none";
+  els.bracketLangSelect.value = savedLang;
   els.bracketLangSelect.addEventListener("change", () => {
     localStorage.setItem("riki:settings:bracket-lang", els.bracketLangSelect.value);
+    updateVoiceSelectVisibility();
   });
 }
 if (els.jaVoiceSelect) {
@@ -32,12 +77,32 @@ if (els.enVoiceSelect) {
     localStorage.setItem("riki:settings:en-voice", els.enVoiceSelect.value);
   });
 }
+if (els.zhVoiceSelect) {
+  els.zhVoiceSelect.value = localStorage.getItem("riki:settings:zh-voice") || "zh-CN-XiaoxiaoNeural";
+  els.zhVoiceSelect.addEventListener("change", () => {
+    localStorage.setItem("riki:settings:zh-voice", els.zhVoiceSelect.value);
+  });
+}
 if (els.speechRateSelect) {
   els.speechRateSelect.value = localStorage.getItem("riki:settings:speech-rate") || "1.0";
   els.speechRateSelect.addEventListener("change", () => {
     localStorage.setItem("riki:settings:speech-rate", els.speechRateSelect.value);
   });
 }
+
+function updateVoiceSelectVisibility() {
+  if (!els.bracketLangSelect || !els.voiceRow) return;
+  const lang = els.bracketLangSelect.value;
+  if (lang === "none") {
+    els.voiceRow.style.display = "none";
+  } else {
+    els.voiceRow.style.display = "";
+    if (els.jaVoiceSelect) els.jaVoiceSelect.style.display = lang === "ja" ? "" : "none";
+    if (els.enVoiceSelect) els.enVoiceSelect.style.display = lang === "en" ? "" : "none";
+    if (els.zhVoiceSelect) els.zhVoiceSelect.style.display = lang === "zh" ? "" : "none";
+  }
+}
+updateVoiceSelectVisibility();
 
 const actorState = {
   "point-left": localStorage.getItem("riki:actor:point-left") || "../assets/riki-left.png",
@@ -394,7 +459,7 @@ function removeImage(side) {
   render();
 }
 
-[els.leftColor, els.rightColor, els.videoBg, els.fontSizeInput, els.actorScaleInput, els.fontSelect, els.scriptInput, els.voiceSelect, els.styleSelect, els.highlightMode, els.bracketLangSelect, els.jaVoiceSelect, els.enVoiceSelect, els.speechRateSelect].forEach((item) => { if (item) item.addEventListener("input", render); });
+[els.leftColor, els.rightColor, els.videoBg, els.fontSizeInput, els.actorScaleInput, els.fontSelect, els.scriptInput, els.voiceSelect, els.styleSelect, els.highlightMode, els.bracketLangSelect, els.jaVoiceSelect, els.enVoiceSelect, els.zhVoiceSelect, els.speechRateSelect, els.ttsEngineSelect].forEach((item) => { if (item) item.addEventListener("input", render); });
 if (els.fontSizeDecBtn) {
   els.fontSizeDecBtn.addEventListener("click", () => {
     const cur = parseInt(els.fontSizeInput.value, 10) || 40;
@@ -545,11 +610,13 @@ if (els.previewVoiceBtn) {
 
       try {
         const result = await window.electronAPI.previewVoice({
+          engine: els.ttsEngineSelect ? els.ttsEngineSelect.value : "vieneu",
           voice,
           style,
-          bracketLang: els.bracketLangSelect ? els.bracketLangSelect.value : "auto",
+          bracketLang: els.bracketLangSelect ? els.bracketLangSelect.value : "none",
           jaVoice: els.jaVoiceSelect ? els.jaVoiceSelect.value : "ja-JP-NanamiNeural",
           enVoice: els.enVoiceSelect ? els.enVoiceSelect.value : "en-US-AriaNeural",
+          zhVoice: els.zhVoiceSelect ? els.zhVoiceSelect.value : "zh-CN-XiaoxiaoNeural",
           speechRate: els.speechRateSelect ? parseFloat(els.speechRateSelect.value) || 1.0 : 1.0,
         });
         if (result && result.success && result.audio) {
@@ -582,6 +649,7 @@ els.actorResetBtn.addEventListener("click", () => {
 function buildRenderConfig() {
   const list = scenes();
   return {
+    engine: els.ttsEngineSelect ? els.ttsEngineSelect.value : "vieneu",
     leftTerm: state.globalTerms.left,
     rightTerm: state.globalTerms.right,
     leftColor: els.leftColor.value,
@@ -596,9 +664,10 @@ function buildRenderConfig() {
     fontFamily: els.fontSelect ? els.fontSelect.value : "Segoe UI, Arial, sans-serif",
     videoBg: els.videoBg.value,
     outputPath: settingsState.outputPath,
-    bracketLang: els.bracketLangSelect ? els.bracketLangSelect.value : "auto",
+    bracketLang: els.bracketLangSelect ? els.bracketLangSelect.value : "none",
     jaVoice: els.jaVoiceSelect ? els.jaVoiceSelect.value : "ja-JP-NanamiNeural",
     enVoice: els.enVoiceSelect ? els.enVoiceSelect.value : "en-US-AriaNeural",
+    zhVoice: els.zhVoiceSelect ? els.zhVoiceSelect.value : "zh-CN-XiaoxiaoNeural",
     speechRate: els.speechRateSelect ? parseFloat(els.speechRateSelect.value) || 1.0 : 1.0,
     videoName: settingsState.videoName || "riki-scene-output",
     actorImages: {
@@ -805,5 +874,6 @@ if (els.infoModalClose) els.infoModalClose.addEventListener("click", () => { els
 if (els.infoModalOkBtn) els.infoModalOkBtn.addEventListener("click", () => { els.infoModal.hidden = true; });
 if (els.infoModalBackdrop) els.infoModalBackdrop.addEventListener("click", () => { els.infoModal.hidden = true; });
 
+updateVoiceDropdown();
 initActorPreviews();
 render();

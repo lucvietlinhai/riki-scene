@@ -6,7 +6,7 @@ import asyncio
 import tempfile
 import shutil
 
-def partition_text(text: str, default_lang: str = "auto"):
+def partition_text(text: str, default_lang: str = "none"):
     if not text:
         return []
     parts = re.split(r'(\[[^\]]+\])', text)
@@ -20,6 +20,8 @@ def partition_text(text: str, default_lang: str = "auto"):
                 segments.append({"text": content[3:].strip(), "lang": "ja"})
             elif content.lower().startswith('en:'):
                 segments.append({"text": content[3:].strip(), "lang": "en"})
+            elif content.lower().startswith('zh:'):
+                segments.append({"text": content[3:].strip(), "lang": "zh"})
             elif content.lower().startswith('vi:'):
                 segments.append({"text": content[3:].strip(), "lang": "vi_online"})
             else:
@@ -27,8 +29,12 @@ def partition_text(text: str, default_lang: str = "auto"):
                     segments.append({"text": content, "lang": "ja"})
                 elif default_lang == "en":
                     segments.append({"text": content, "lang": "en"})
+                elif default_lang == "zh":
+                    segments.append({"text": content, "lang": "zh"})
                 elif default_lang == "vi":
                     segments.append({"text": content, "lang": "vi_online"})
+                elif default_lang == "none":
+                    segments.append({"text": content, "lang": "vi"})
                 else:
                     if re.search(r'[\u3040-\u309f\u30a0-\u30ff\u4e00-\u9faf]', content):
                         segments.append({"text": content, "lang": "ja"})
@@ -62,12 +68,13 @@ def adjust_wav_speed(wav_path: Path, rate_val: float, ffmpeg_path: str = "ffmpeg
             try: temp_wav.unlink()
             except Exception: pass
 
-async def generate_edge_tts(text: str, lang: str, out_path: Path, ffmpeg_path: str = "ffmpeg", ja_voice: str = "ja-JP-NanamiNeural", en_voice: str = "en-US-AriaNeural", rate_val: float = 1.0):
+async def generate_edge_tts(text: str, lang: str, out_path: Path, ffmpeg_path: str = "ffmpeg", ja_voice: str = "ja-JP-NanamiNeural", en_voice: str = "en-US-AriaNeural", zh_voice: str = "zh-CN-XiaoxiaoNeural", rate_val: float = 1.0):
     import edge_tts
     import subprocess
     voice_map = {
         "ja": ja_voice or "ja-JP-NanamiNeural",
         "en": en_voice or "en-US-AriaNeural",
+        "zh": zh_voice or "zh-CN-XiaoxiaoNeural",
         "vi_online": "vi-VN-HoaiMyNeural"
     }
     voice = voice_map.get(lang, en_voice or "en-US-AriaNeural")
@@ -125,9 +132,10 @@ async def main_async():
     parser.add_argument("--text", default="Xin chào, đây là giọng đọc thử nghiệm.")
     parser.add_argument("--out-wav", required=True)
     parser.add_argument("--ffmpeg-path", default="ffmpeg")
-    parser.add_argument("--bracket-lang", default="auto")
+    parser.add_argument("--bracket-lang", default="none")
     parser.add_argument("--ja-voice", default="ja-JP-NanamiNeural")
     parser.add_argument("--en-voice", default="en-US-AriaNeural")
+    parser.add_argument("--zh-voice", default="zh-CN-XiaoxiaoNeural")
     parser.add_argument("--speech-rate", type=float, default=1.0)
     args = parser.parse_args()
 
@@ -171,7 +179,7 @@ async def main_async():
                 temp_wavs.append(seg_wav_path)
             else:
                 try:
-                    await generate_edge_tts(seg_text, lang, seg_wav_path, args.ffmpeg_path, ja_voice=args.ja_voice, en_voice=args.en_voice, rate_val=args.speech_rate)
+                    await generate_edge_tts(seg_text, lang, seg_wav_path, args.ffmpeg_path, ja_voice=args.ja_voice, en_voice=args.en_voice, zh_voice=args.zh_voice, rate_val=args.speech_rate)
                     temp_wavs.append(seg_wav_path)
                 except Exception as e:
                     # Fallback to local

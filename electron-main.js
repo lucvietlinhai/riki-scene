@@ -75,28 +75,35 @@ function ensureTTSEnvironment() {
   return fs.existsSync(uvBin) ? uvBin : "uv";
 }
 
-ipcMain.handle("voice:preview", async (_event, { voice, style, text, bracketLang, jaVoice, enVoice, speechRate }) => {
-  const sampleText = text || `Xin chào, đây là giọng đọc ${voice}, chúc bạn tạo ra những video tuyệt vời!`;
+
+ipcMain.handle("voice:preview", async (_event, { voice, style, text, bracketLang, jaVoice, enVoice, zhVoice, speechRate }) => {
+  const sampleText = text || `Xin chào, đây là giọng đọc ${voice || "Minh Đức"}, chúc bạn tạo ra những video tuyệt vời!`;
   const outWav = path.join(os.tmpdir(), `voice-preview-${Date.now()}.wav`);
-  const uvCmd = ensureTTSEnvironment();
+
+  const cmd = ensureTTSEnvironment();
+  const scriptPath = path.join(ROOT, "renderer", "preview_voice.py");
+  const cwdDir = path.join(ROOT, "local-tts", "VieNeu-TTS");
+
+  const spawnArgs = [
+    "run",
+    "python",
+    scriptPath,
+    "--voice", voice || "Minh Đức",
+    "--style", style || "tin_tuc",
+    "--text", sampleText,
+    "--out-wav", outWav,
+    "--ffmpeg-path", ffmpegPath,
+    "--bracket-lang", bracketLang || "none",
+    "--ja-voice", jaVoice || "ja-JP-NanamiNeural",
+    "--en-voice", enVoice || "en-US-AriaNeural",
+    "--zh-voice", zhVoice || "zh-CN-XiaoxiaoNeural",
+    "--speech-rate", String(speechRate || 1.0)
+  ];
 
   return new Promise((resolve, reject) => {
-    const child = spawn(uvCmd, [
-      "run",
-      "python",
-      path.join(ROOT, "renderer", "preview_voice.py"),
-      "--voice", voice || "Minh Đức",
-      "--style", style || "tin_tuc",
-      "--text", sampleText,
-      "--out-wav", outWav,
-      "--ffmpeg-path", ffmpegPath,
-      "--bracket-lang", bracketLang || "auto",
-      "--ja-voice", jaVoice || "ja-JP-NanamiNeural",
-      "--en-voice", enVoice || "en-US-AriaNeural",
-      "--speech-rate", String(speechRate || 1.0)
-    ], {
-      cwd: path.join(ROOT, "local-tts", "VieNeu-TTS"),
-      env: { ...process.env, PYTHONIOENCODING: "utf-8" }
+    const child = spawn(cmd, spawnArgs, {
+      cwd: cwdDir,
+      env: { ...process.env, PYTHONIOENCODING: "utf-8", NLTK_DISABLE_IMPORT_SECURITY: "1" }
     });
 
     child.on("close", (code) => {
@@ -148,6 +155,7 @@ ipcMain.on("render:start", (event, config) => {
 
   const manifest = {
     settings: { width: 1080, height: 1920, fps: 24, format: "9:16" },
+    engine: config.engine || "vieneu",
     title: `${config.leftTerm} và ${config.rightTerm}`,
     leftTerm: config.leftTerm || "Trái",
     rightTerm: config.rightTerm || "Phải",
@@ -164,9 +172,10 @@ ipcMain.on("render:start", (event, config) => {
     outputPath: outputFile,
     videoBg: config.videoBg || "#ffffff",
     actorImages: resolvedActorImages,
-    bracketLang: config.bracketLang || "auto",
+    bracketLang: config.bracketLang || "none",
     jaVoice: config.jaVoice || "ja-JP-NanamiNeural",
     enVoice: config.enVoice || "en-US-AriaNeural",
+    zhVoice: config.zhVoice || "zh-CN-XiaoxiaoNeural",
     speechRate: config.speechRate || 1.0,
     scenes: (config.scenes || []).map((item, i) => ({
       id: `scene-${i + 1}`,

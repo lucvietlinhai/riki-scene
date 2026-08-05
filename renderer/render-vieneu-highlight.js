@@ -123,18 +123,22 @@ async function main() {
   console.log(`[render] Voice: ${voice} · Style: ${style} · Scenes: ${manifest.scenes.length}`);
   console.log("[PROGRESS:5]");
 
-  const activeUvBin = ensureTTSEnvironment();
+  const cmd = ensureTTSEnvironment();
+  const scriptPath = path.join(root, "renderer", "vieneu_scene_tts.py");
+  const cwdDir = path.join(root, "local-tts", "VieNeu-TTS");
 
-  run(activeUvBin, [
+  const spawnArgs = [
     "run",
     "python",
-    path.join(root, "renderer", "vieneu_scene_tts.py"),
+    scriptPath,
     "--manifest", manifestPath,
     "--out-dir", audioDir,
     "--voice", voice,
     "--style", style,
     "--ffmpeg-path", ffmpegPath
-  ], path.join(root, "local-tts", "VieNeu-TTS"), { PYTHONIOENCODING: "utf-8" });
+  ];
+
+  run(cmd, spawnArgs, cwdDir, { PYTHONIOENCODING: "utf-8", NLTK_DISABLE_IMPORT_SECURITY: "1" });
 
   console.log("[PROGRESS:40]");
 
@@ -526,3 +530,4 @@ function ensureTTSEnvironment() {
 
   return activeUvBin;
 }
+

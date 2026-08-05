@@ -23,7 +23,7 @@ def extract_display_text(text: str) -> str:
     t = re.sub(r'\[([^\]]+)\]', r'\1', t)
     return t.strip()
 
-def partition_text(text: str, default_lang: str = "auto"):
+def partition_text(text: str, default_lang: str = "none"):
     if not text:
         return []
     
@@ -39,6 +39,8 @@ def partition_text(text: str, default_lang: str = "auto"):
                 segments.append({"text": content[3:].strip(), "lang": "ja"})
             elif content.lower().startswith('en:'):
                 segments.append({"text": content[3:].strip(), "lang": "en"})
+            elif content.lower().startswith('zh:'):
+                segments.append({"text": content[3:].strip(), "lang": "zh"})
             elif content.lower().startswith('vi:'):
                 segments.append({"text": content[3:].strip(), "lang": "vi_online"})
             else:
@@ -46,8 +48,12 @@ def partition_text(text: str, default_lang: str = "auto"):
                     segments.append({"text": content, "lang": "ja"})
                 elif default_lang == "en":
                     segments.append({"text": content, "lang": "en"})
+                elif default_lang == "zh":
+                    segments.append({"text": content, "lang": "zh"})
                 elif default_lang == "vi":
                     segments.append({"text": content, "lang": "vi_online"})
+                elif default_lang == "none":
+                    segments.append({"text": content, "lang": "vi"})
                 else:
                     # Auto-detect language
                     if re.search(r'[\u3040-\u309f\u30a0-\u30ff\u4e00-\u9faf]', content):
@@ -83,12 +89,13 @@ def adjust_wav_speed(wav_path: Path, rate_val: float, ffmpeg_path: str = "ffmpeg
             try: temp_wav.unlink()
             except Exception: pass
 
-async def generate_edge_tts(text: str, lang: str, out_path: Path, ffmpeg_path: str = "ffmpeg", ja_voice: str = "ja-JP-NanamiNeural", en_voice: str = "en-US-AriaNeural", rate_val: float = 1.0):
+async def generate_edge_tts(text: str, lang: str, out_path: Path, ffmpeg_path: str = "ffmpeg", ja_voice: str = "ja-JP-NanamiNeural", en_voice: str = "en-US-AriaNeural", zh_voice: str = "zh-CN-XiaoxiaoNeural", rate_val: float = 1.0):
     import edge_tts
     import subprocess
     voice_map = {
         "ja": ja_voice or "ja-JP-NanamiNeural",
         "en": en_voice or "en-US-AriaNeural",
+        "zh": zh_voice or "zh-CN-XiaoxiaoNeural",
         "vi_online": "vi-VN-HoaiMyNeural"
     }
     voice = voice_map.get(lang, en_voice or "en-US-AriaNeural")
@@ -152,9 +159,10 @@ async def main_async():
     args = parser.parse_args()
 
     manifest = json.loads(Path(args.manifest).read_text(encoding="utf-8"))
-    default_lang = manifest.get("bracketLang", "auto")
+    default_lang = manifest.get("bracketLang", "none")
     ja_voice = manifest.get("jaVoice", "ja-JP-NanamiNeural")
     en_voice = manifest.get("enVoice", "en-US-AriaNeural")
+    zh_voice = manifest.get("zhVoice", "zh-CN-XiaoxiaoNeural")
     speech_rate = float(manifest.get("speechRate", 1.0))
     out_dir = Path(args.out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -203,7 +211,7 @@ async def main_async():
                     # Online Edge-TTS
                     print(f"[render]  └─ Synthesizing online '{seg_text}' using Edge-TTS ({lang})...")
                     try:
-                        await generate_edge_tts(seg_text, lang, seg_wav_path, args.ffmpeg_path, ja_voice=ja_voice, en_voice=en_voice, rate_val=speech_rate)
+                        await generate_edge_tts(seg_text, lang, seg_wav_path, args.ffmpeg_path, ja_voice=ja_voice, en_voice=en_voice, zh_voice=zh_voice, rate_val=speech_rate)
                         temp_wavs.append(seg_wav_path)
                     except Exception as e:
                         print(f"[WARN] Edge-TTS failed for '{seg_text}' ({lang}): {str(e)}")

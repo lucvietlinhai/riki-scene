@@ -172,7 +172,7 @@ function setupTTS(uvBinPath) {
     console.log("  Setup complete! Run: npm start");
     console.log("=================================================");
   } catch (err) {
-    console.error("Setup error:", err.message);
+    console.error("Setup failed:", err.message);
     process.exit(1);
   }
 })();

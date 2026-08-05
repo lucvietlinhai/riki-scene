@@ -237,7 +237,11 @@
         <div class="panel__section">
           <h2 class="panel__title">Cấu hình giọng đọc</h2>
           <div class="voice-grid">
-            <label class="field-label">Bộ máy TTS<input value="VieNeu-TTS · ONNX CPU" disabled /></label>
+            <label class="field-label">Bộ máy TTS
+              <select id="ttsEngineSelect">
+                <option value="vieneu" selected>VieNeu-TTS · ONNX CPU</option>
+              </select>
+            </label>
             <label class="field-label">Giọng đọc
               <select id="voiceSelect">
                 <option value="Minh Đức">Minh Đức — Nam · Bắc · Tin tức</option>
@@ -390,12 +394,13 @@ Khi so sánh hai khái niệm, hãy nhìn vào điểm khác nhau trong cách đ
         <div class="script-tip__row">
           <span>💡 <strong>Phát âm mặc định cho [...]:</strong></span>
           <select id="bracketLangSelect" class="script-tip__select">
-            <option value="auto">Tự động nhận diện</option>
-            <option value="en">Tiếng Anh (Edge-TTS)</option>
-            <option value="ja">Tiếng Nhật (Edge-TTS)</option>
+            <option value="none">Chưa có phát âm</option>
+            <option value="en">Tiếng Anh</option>
+            <option value="ja">Tiếng Nhật</option>
+            <option value="zh">Tiếng Trung</option>
           </select>
         </div>
-        <div class="script-tip__row">
+        <div class="script-tip__row" id="voiceRow">
           <span>🎙️ <strong>Giọng đọc ngoại ngữ:</strong></span>
           <div class="script-tip__voices">
             <select id="jaVoiceSelect" class="script-tip__select" title="Giọng đọc Tiếng Nhật">
@@ -410,6 +415,12 @@ Khi so sánh hai khái niệm, hãy nhìn vào điểm khác nhau trong cách đ
               <option value="en-US-JennyNeural">🇺🇸 Nữ Mỹ (Jenny)</option>
               <option value="en-GB-RyanNeural">🇬🇧 Nam Anh (Ryan)</option>
               <option value="en-GB-SoniaNeural">🇬🇧 Nữ Anh (Sonia)</option>
+            </select>
+            <select id="zhVoiceSelect" class="script-tip__select" title="Giọng đọc Tiếng Trung">
+              <option value="zh-CN-XiaoxiaoNeural">🇨🇳 Nữ (Xiaoxiao)</option>
+              <option value="zh-CN-YunxiNeural">🇨🇳 Nam (Yunxi)</option>
+              <option value="zh-CN-YunjianNeural">🇨🇳 Nam (Yunjian)</option>
+              <option value="zh-CN-XiaoyiNeural">🇨🇳 Nữ (Xiaoyi)</option>
             </select>
           </div>
         </div>
