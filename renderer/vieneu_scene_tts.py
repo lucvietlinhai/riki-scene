@@ -89,6 +89,34 @@ def adjust_wav_speed(wav_path: Path, rate_val: float, ffmpeg_path: str = "ffmpeg
             try: temp_wav.unlink()
             except Exception: pass
 
+def normalize_wav_48k(wav_path: Path, ffmpeg_path: str = "ffmpeg"):
+    import subprocess
+    try:
+        with wave.open(str(wav_path), 'rb') as w:
+            if w.getframerate() == 48000 and w.getnchannels() == 1:
+                return
+    except Exception:
+        pass
+    temp_wav = wav_path.parent / f"norm48k-{wav_path.name}"
+    try:
+        cmd = [
+            ffmpeg_path, "-y",
+            "-i", str(wav_path),
+            "-ar", "48000",
+            "-ac", "1",
+            "-c:a", "pcm_s16le",
+            str(temp_wav)
+        ]
+        res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        if res.returncode == 0 and temp_wav.exists():
+            shutil.move(str(temp_wav), str(wav_path))
+    except Exception:
+        pass
+    finally:
+        if temp_wav.exists():
+            try: temp_wav.unlink()
+            except Exception: pass
+
 async def generate_edge_tts(text: str, lang: str, out_path: Path, ffmpeg_path: str = "ffmpeg", ja_voice: str = "ja-JP-NanamiNeural", en_voice: str = "en-US-AriaNeural", zh_voice: str = "zh-CN-XiaoxiaoNeural", rate_val: float = 1.0):
     import edge_tts
     import subprocess
@@ -159,6 +187,8 @@ async def main_async():
     args = parser.parse_args()
 
     manifest = json.loads(Path(args.manifest).read_text(encoding="utf-8"))
+    engine_name = manifest.get("engine", "vieneu")
+    kokoro_voice = manifest.get("kokoroVoice", "diem_trinh")
     default_lang = manifest.get("bracketLang", "none")
     ja_voice = manifest.get("jaVoice", "ja-JP-NanamiNeural")
     en_voice = manifest.get("enVoice", "en-US-AriaNeural")
@@ -167,7 +197,7 @@ async def main_async():
     out_dir = Path(args.out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    # Lazy-load local VieNeu-TTS engine
+    # Lazy-load local engines
     vieneu_engine = None
     def get_vieneu():
         nonlocal vieneu_engine
@@ -176,6 +206,29 @@ async def main_async():
             from vieneu import Vieneu
             vieneu_engine = Vieneu(backend="onnx", precision=args.precision)
         return vieneu_engine
+
+    kokoro_engine = None
+    def get_kokoro():
+        nonlocal kokoro_engine
+        if kokoro_engine is None:
+            print(f"[render] Initializing Kokoro-Vietnamese engine ({kokoro_voice})...")
+            from kokoro_vietnamese import KokoroVietnamese
+            kokoro_engine = KokoroVietnamese(device="cpu", voice=kokoro_voice)
+        return kokoro_engine
+
+    def gen_local_vi(seg_text, seg_wav_path):
+        if engine_name == "kokoro":
+            import soundfile as sf
+            k_engine = get_kokoro()
+            audio, _ = k_engine.synthesize(seg_text)
+            sf.write(str(seg_wav_path), audio, 24000)
+        else:
+            v_engine = get_vieneu()
+            audio = v_engine.infer(seg_text, voice=args.voice, style=args.style)
+            v_engine.save(audio, str(seg_wav_path))
+        normalize_wav_48k(seg_wav_path, args.ffmpeg_path)
+        if abs(speech_rate - 1.0) >= 0.01:
+            adjust_wav_speed(seg_wav_path, speech_rate, args.ffmpeg_path)
 
     audio_items = []
 
@@ -200,12 +253,7 @@ async def main_async():
                 seg_wav_path = temp_dir / f"seg-{seg_idx:03}.wav"
                 
                 if lang == "vi":
-                    # Local Offline VieNeu-TTS
-                    v_engine = get_vieneu()
-                    audio = v_engine.infer(seg_text, voice=args.voice, style=args.style)
-                    v_engine.save(audio, str(seg_wav_path))
-                    if abs(speech_rate - 1.0) >= 0.01:
-                        adjust_wav_speed(seg_wav_path, speech_rate, args.ffmpeg_path)
+                    gen_local_vi(seg_text, seg_wav_path)
                     temp_wavs.append(seg_wav_path)
                 else:
                     # Online Edge-TTS
@@ -215,14 +263,9 @@ async def main_async():
                         temp_wavs.append(seg_wav_path)
                     except Exception as e:
                         print(f"[WARN] Edge-TTS failed for '{seg_text}' ({lang}): {str(e)}")
-                        # Fallback to local offline TTS
-                        print(f"[render]  └─ Falling back to offline VieNeu-TTS...")
+                        print(f"[render]  └─ Falling back to local offline TTS ({engine_name})...")
                         try:
-                            v_engine = get_vieneu()
-                            audio = v_engine.infer(seg_text, voice=args.voice, style=args.style)
-                            v_engine.save(audio, str(seg_wav_path))
-                            if abs(speech_rate - 1.0) >= 0.01:
-                                adjust_wav_speed(seg_wav_path, speech_rate, args.ffmpeg_path)
+                            gen_local_vi(seg_text, seg_wav_path)
                             temp_wavs.append(seg_wav_path)
                         except Exception as fallback_err:
                             print(f"[ERROR] Offline fallback failed: {str(fallback_err)}")
@@ -241,10 +284,11 @@ async def main_async():
                 samples = frames
                 
             # Build unified text representations for highlight and subtitle
-            display_text = ""
-            for seg in segments:
-                display_text += seg["text"] + " "
-            display_text = display_text.strip()
+            display_text = scene.get("displayText", "").strip()
+            if not display_text:
+                t = re.sub(r'(\S+)\[([^\]]+)\]', r'\1', raw_text)
+                t = re.sub(r'\[([^\]]+)\]', r'\1', t)
+                display_text = re.sub(r'\s+', ' ', t).strip()
             
             audio_items.append({
                 "sceneId": scene.get("id", f"scene-{index + 1}"),

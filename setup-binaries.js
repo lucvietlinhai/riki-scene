@@ -159,7 +159,20 @@ function setupTTS(uvBinPath) {
     process.exit(result.status || 1);
   }
 
-  console.log("  ✓ TTS environment ready.");
+  console.log("  ✓ Base TTS environment ready.");
+
+  console.log("  [+] Installing/Checking Kokoro-Vietnamese TTS dependencies from GitHub...");
+  const addKokoro = spawnSync(uvBinPath, ["pip", "install", "--project", ttsDir, "git+https://github.com/iamdinhthuan/Kokoro-Vietnamese.git", "soundfile"], {
+    cwd: ttsDir,
+    stdio: "inherit",
+    env: { ...process.env }
+  });
+
+  if (addKokoro.status === 0) {
+    console.log("  ✓ Kokoro-Vietnamese TTS ready.");
+  } else {
+    console.warn("  [!] Warning: Kokoro-Vietnamese install returned non-zero status. VieNeu-TTS will still work.");
+  }
 }
 
 (async () => {

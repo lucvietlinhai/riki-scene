@@ -117,10 +117,13 @@ async function main() {
 
   fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2), "utf8");
 
+  const engine = manifest.engine || "vieneu";
   const voice = manifest.voice || cliArgs.voice || "Minh Đức";
+  const kokoroVoice = manifest.kokoroVoice || "diem_trinh";
   const style = manifest.style || cliArgs.style || "tin_tuc";
 
-  console.log(`[render] Voice: ${voice} · Style: ${style} · Scenes: ${manifest.scenes.length}`);
+  const voiceDisplay = engine === "kokoro" ? `Kokoro (${kokoroVoice})` : `VieNeu (${voice} · ${style})`;
+  console.log(`[render] Engine: ${engine} · Voice: ${voiceDisplay} · Scenes: ${manifest.scenes.length}`);
   console.log("[PROGRESS:5]");
 
   const cmd = ensureTTSEnvironment();
@@ -288,8 +291,8 @@ function makeFrame(scene, sceneIndex, progress, totalScenes, duration, actorFile
   const leftTerm = scene.leftTerm || manifest.leftTerm || "Trái";
   const rightTerm = scene.rightTerm || manifest.rightTerm || "Phải";
   const sceneImagePaths = {
-    left: scene.leftImage || (imagePaths && imagePaths.left) || "",
-    right: scene.rightImage || (imagePaths && imagePaths.right) || ""
+    left: scene.leftImage || "",
+    right: scene.rightImage || ""
   };
   const hasImages = Boolean(sceneImagePaths.left || sceneImagePaths.right);
   const hasActor = Boolean(scene.pose && scene.pose !== "none");
@@ -373,28 +376,38 @@ function highlightText(text, activeIndex, x, y, maxWidth, lineHeight, customFont
   const fontSize = customFontSize || manifest.fontSize || 40;
   const activeFontSize = Math.round(fontSize * 1.1);
   const effectiveLineHeight = Math.max(lineHeight || 54, Math.round(fontSize * 1.35));
-  const spaceWidth = Math.round(fontSize * 0.28);
   const lines = layoutWords(words, maxWidth, fontSize);
   let wordIndex = 0;
   const chunks = [];
+  const centerX = Math.round(x + maxWidth / 2);
+
   for (let lineIndex = 0; lineIndex < lines.length; lineIndex += 1) {
-    let cursor = x + (maxWidth - lines[lineIndex].width) / 2;
-    for (const word of lines[lineIndex].words) {
+    const lineWords = lines[lineIndex].words;
+    const lineY = y + lineIndex * effectiveLineHeight;
+    const tspans = [];
+
+    for (let i = 0; i < lineWords.length; i += 1) {
+      const word = lineWords[i];
       const current = wordIndex === activeIndex;
       const fill = current ? "#3ac6c6" : "#202525";
-      const ff = resolvedFontFamily || defaultFontFamily;
-      chunks.push(`<text x="${cursor}" y="${y + lineIndex * effectiveLineHeight}" font-family="${ff}" font-size="${current ? activeFontSize : fontSize}" font-weight="${current ? 900 : 700}" fill="${fill}">${escapeXml(word.text)}</text>`);
-      const actualWordWidth = estimateWidth(word.text, current ? activeFontSize : fontSize);
-      cursor += actualWordWidth + spaceWidth;
+      const currentSize = current ? activeFontSize : fontSize;
+      const currentWeight = current ? 900 : 700;
+      const isLastInLine = i === lineWords.length - 1;
+      const trailingSpace = isLastInLine ? "" : " ";
+
+      tspans.push(`<tspan fill="${fill}" font-size="${currentSize}" font-weight="${currentWeight}">${escapeXml(word.text)}${trailingSpace}</tspan>`);
       wordIndex += 1;
     }
+
+    const ff = resolvedFontFamily || defaultFontFamily;
+    chunks.push(`<text x="${centerX}" y="${lineY}" text-anchor="middle" font-family="${ff}" xml:space="preserve">${tspans.join("")}</text>`);
   }
   return chunks.join("\n");
 }
 
 function layoutWords(words, maxWidth, size) {
   const lines = [];
-  const spaceWidth = Math.round(size * 0.28);
+  const spaceWidth = Math.round(size * 0.35);
   let current = { words: [], width: 0 };
   for (const word of words) {
     const width = estimateWidth(word, size);
@@ -415,18 +428,15 @@ function estimateWidth(word, size) {
   let total = 0;
   for (const char of normalized) {
     if ("ijl1!.:;,Itfr/\\|()[]{}".includes(char)) {
-      total += 0.32;
+      total += 0.38;
     } else if ("mwMW".includes(char)) {
-      total += 0.85;
+      total += 0.95;
     } else if ("OQGHDCRNKABXYVP".includes(char)) {
-      total += 0.72;
+      total += 0.80;
     } else if (/[A-Z]/.test(char)) {
-      total += 0.68;
-    } else if (/[a-z0-9]/.test(char)) {
-      total += 0.56;
+      total += 0.75;
     } else {
-      const isUpper = char === char.toUpperCase() && char !== char.toLowerCase();
-      total += isUpper ? 0.72 : 0.58;
+      total += 0.68;
     }
   }
   return Math.ceil(total * size);

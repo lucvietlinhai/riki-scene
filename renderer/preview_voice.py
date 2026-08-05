@@ -68,6 +68,34 @@ def adjust_wav_speed(wav_path: Path, rate_val: float, ffmpeg_path: str = "ffmpeg
             try: temp_wav.unlink()
             except Exception: pass
 
+def normalize_wav_48k(wav_path: Path, ffmpeg_path: str = "ffmpeg"):
+    import subprocess
+    try:
+        with wave.open(str(wav_path), 'rb') as w:
+            if w.getframerate() == 48000 and w.getnchannels() == 1:
+                return
+    except Exception:
+        pass
+    temp_wav = wav_path.parent / f"norm48k-{wav_path.name}"
+    try:
+        cmd = [
+            ffmpeg_path, "-y",
+            "-i", str(wav_path),
+            "-ar", "48000",
+            "-ac", "1",
+            "-c:a", "pcm_s16le",
+            str(temp_wav)
+        ]
+        res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        if res.returncode == 0 and temp_wav.exists():
+            shutil.move(str(temp_wav), str(wav_path))
+    except Exception:
+        pass
+    finally:
+        if temp_wav.exists():
+            try: temp_wav.unlink()
+            except Exception: pass
+
 async def generate_edge_tts(text: str, lang: str, out_path: Path, ffmpeg_path: str = "ffmpeg", ja_voice: str = "ja-JP-NanamiNeural", en_voice: str = "en-US-AriaNeural", zh_voice: str = "zh-CN-XiaoxiaoNeural", rate_val: float = 1.0):
     import edge_tts
     import subprocess
@@ -126,8 +154,10 @@ def concatenate_wavs(wav_paths, output_path):
             w.writeframes(d)
 
 async def main_async():
-    parser = argparse.ArgumentParser(description="Preview VieNeu-TTS Voice.")
+    parser = argparse.ArgumentParser(description="Preview TTS Voice (VieNeu / Kokoro).")
+    parser.add_argument("--engine", default="vieneu", choices=["vieneu", "kokoro"])
     parser.add_argument("--voice", default="Minh Đức")
+    parser.add_argument("--kokoro-voice", default="diem_trinh")
     parser.add_argument("--style", default="tin_tuc")
     parser.add_argument("--text", default="Xin chào, đây là giọng đọc thử nghiệm.")
     parser.add_argument("--out-wav", required=True)
@@ -147,20 +177,28 @@ async def main_async():
         print("ERROR: Empty text")
         return
 
-    # If only one segment and it is local vi, run synchronously without lazy loading complexity
-    if len(segments) == 1 and segments[0]["lang"] == "vi":
-        from vieneu import Vieneu
-        vieneu = Vieneu(backend="onnx", precision="int8")
-        audio = vieneu.infer(segments[0]["text"], voice=args.voice, style=args.style)
-        vieneu.save(audio, str(out_path))
-        if abs(args.speech_rate - 1.0) >= 0.01:
-            adjust_wav_speed(out_path, args.speech_rate, args.ffmpeg_path)
-        print(f"SUCCESS:{out_path}")
-        return
-
     temp_wavs = []
     temp_dir = Path(tempfile.mkdtemp())
-    vieneu_engine = None
+    vieneu_ref = [None]
+    kokoro_ref = [None]
+
+    def gen_vi(txt, dest_path):
+        if args.engine == "kokoro":
+            import soundfile as sf
+            if kokoro_ref[0] is None:
+                from kokoro_vietnamese import KokoroVietnamese
+                kokoro_ref[0] = KokoroVietnamese(device="cpu", voice=args.kokoro_voice)
+            audio, _ = kokoro_ref[0].synthesize(txt)
+            sf.write(str(dest_path), audio, 24000)
+        else:
+            if vieneu_ref[0] is None:
+                from vieneu import Vieneu
+                vieneu_ref[0] = Vieneu(backend="onnx", precision="int8")
+            audio = vieneu_ref[0].infer(txt, voice=args.voice, style=args.style)
+            vieneu_ref[0].save(audio, str(dest_path))
+        normalize_wav_48k(dest_path, args.ffmpeg_path)
+        if abs(args.speech_rate - 1.0) >= 0.01:
+            adjust_wav_speed(dest_path, args.speech_rate, args.ffmpeg_path)
 
     try:
         for seg_idx, seg in enumerate(segments):
@@ -169,13 +207,7 @@ async def main_async():
             seg_wav_path = temp_dir / f"seg-{seg_idx:03}.wav"
             
             if lang == "vi":
-                if vieneu_engine is None:
-                    from vieneu import Vieneu
-                    vieneu_engine = Vieneu(backend="onnx", precision="int8")
-                audio = vieneu_engine.infer(seg_text, voice=args.voice, style=args.style)
-                vieneu_engine.save(audio, str(seg_wav_path))
-                if abs(args.speech_rate - 1.0) >= 0.01:
-                    adjust_wav_speed(seg_wav_path, args.speech_rate, args.ffmpeg_path)
+                gen_vi(seg_text, seg_wav_path)
                 temp_wavs.append(seg_wav_path)
             else:
                 try:
@@ -183,13 +215,7 @@ async def main_async():
                     temp_wavs.append(seg_wav_path)
                 except Exception as e:
                     # Fallback to local
-                    if vieneu_engine is None:
-                        from vieneu import Vieneu
-                        vieneu_engine = Vieneu(backend="onnx", precision="int8")
-                    audio = vieneu_engine.infer(seg_text, voice=args.voice, style=args.style)
-                    vieneu_engine.save(audio, str(seg_wav_path))
-                    if abs(args.speech_rate - 1.0) >= 0.01:
-                        adjust_wav_speed(seg_wav_path, args.speech_rate, args.ffmpeg_path)
+                    gen_vi(seg_text, seg_wav_path)
                     temp_wavs.append(seg_wav_path)
 
         if temp_wavs:

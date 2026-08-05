@@ -18,6 +18,15 @@
       <span class="brand__logo">R</span>
     </div>
     <div class="topbar__actions">
+      <button class="btn-bug-log" id="bugLogBtn" type="button" title="Nhật ký hoạt động & Bug Log">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+          stroke-linecap="round" stroke-linejoin="round">
+          <rect x="2" y="4" width="20" height="16" rx="3" />
+          <path d="M7 15l4-4-4-4" />
+          <line x1="13" y1="15" x2="17" y2="15" />
+        </svg>
+        <span class="bug-log-badge" id="bugLogBadge" hidden>!</span>
+      </button>
       <button class="btn-info" id="infoBtn" type="button" title="Thông tin ứng dụng (Auth, Version)">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
           stroke-linecap="round" stroke-linejoin="round">
@@ -57,25 +66,45 @@
           </button>
         </div>
       </div>
-      <article class="phone">
+      <article class="phone" id="previewPhone" title="Lăn chuột lên/xuống để chuyển cảnh">
         <div class="card">
           <div class="hero-title">
-            <h2 id="leftTitle">Khách quan</h2>
-            <h2 id="rightTitle">Chủ quan</h2>
+            <h2 id="leftTitle" title="Nhấp đúp để sửa vế trái">Khách quan</h2>
+            <h2 id="rightTitle" title="Nhấp đúp để sửa vế phải">Chủ quan</h2>
           </div>
-          <div class="images">
-            <img id="leftImage" alt="Ảnh so sánh trái" />
-            <img id="rightImage" alt="Ảnh so sánh phải" />
+          <div class="images" id="previewImages">
+            <div class="preview-image-wrap preview-image-wrap--left" id="leftImageWrap" title="Click để tải/thay ảnh trái">
+              <img id="leftImage" alt="Ảnh so sánh trái" />
+              <div class="preview-image-overlay">
+                <span class="preview-image-hint">+ Ảnh trái</span>
+              </div>
+            </div>
+            <div class="preview-image-wrap preview-image-wrap--right" id="rightImageWrap" title="Click để tải/thay ảnh phải">
+              <img id="rightImage" alt="Ảnh so sánh phải" />
+              <div class="preview-image-overlay">
+                <span class="preview-image-hint">+ Ảnh phải</span>
+              </div>
+            </div>
           </div>
           <div class="read-box">
-            <p id="highlightText"></p>
-            <div class="actor" id="actor" aria-hidden="true">
+            <p id="highlightText" title="Click để nhảy tới kịch bản dòng này"></p>
+            <div class="actor" id="actor" title="Bấm chuột phải để chọn tư thế nhân vật">
               <b id="poseName">chỉ trái</b>
               <img id="actorCustomImg" class="actor__custom-img" alt="" />
               <i class="head"></i><i class="body"></i><i class="arm left"></i><i class="arm right"></i><i
                 class="leg one"></i><i class="leg two"></i>
             </div>
           </div>
+        </div>
+        <div class="actor-context-menu" id="actorContextMenu" hidden>
+          <div class="actor-context-menu__title">Tư thế nhân vật</div>
+          <button type="button" data-pose="point-left">👉 Chỉ trái</button>
+          <button type="button" data-pose="point-right">👈 Chỉ phải</button>
+          <button type="button" data-pose="think">❓ Đặt câu hỏi</button>
+          <button type="button" data-pose="explain-1">🗣️ Giải thích</button>
+          <button type="button" data-pose="explain-2">📢 Nhấn mạnh</button>
+          <button type="button" data-pose="explain-3">📊 Phân tích</button>
+          <button type="button" data-pose="none">🚫 Không nhân vật</button>
         </div>
       </article>
       <div class="player">
@@ -240,9 +269,28 @@
             <label class="field-label">Bộ máy TTS
               <select id="ttsEngineSelect">
                 <option value="vieneu" selected>VieNeu-TTS · ONNX CPU</option>
+                <option value="kokoro">Kokoro-Vietnamese · ONNX CPU</option>
               </select>
             </label>
-            <label class="field-label">Giọng đọc
+            <label class="field-label" id="kokoroVoiceLabel" hidden>Giọng đọc Kokoro
+              <select id="kokoroVoiceSelect">
+                <option value="diem_trinh" selected>Điểm Trịnh — Nữ · Ấm áp</option>
+                <option value="hung_thinh">Hùng Thịnh — Nam · Chuẩn</option>
+                <option value="mai_linh">Mai Linh — Nữ · Truyền cảm</option>
+                <option value="mai_loan">Mai Loan — Nữ · Nhẹ nhàng</option>
+                <option value="manh_dung">Mạnh Dũng — Nam · Trầm ấm</option>
+                <option value="my_yen">Mỹ Yến — Nữ · Tự nhiên</option>
+                <option value="ngoc_huyen">Ngọc Huyền — Nữ · Trong trẻo</option>
+                <option value="phat_tai">Phát Tài — Nam · Năng động</option>
+                <option value="thanh_dat">Thành Đạt — Nam · Tin tức</option>
+                <option value="thuc_trinh">Thục Trịnh — Nữ · Dịu dàng</option>
+                <option value="tuan_ngoc">Tuấn Ngọc — Nam · Kể chuyện</option>
+                <option value="storyvert">Storyvert — Nữ · Đọc truyện</option>
+                <option value="duc_an">Đức An — Nam · Trẻ trung</option>
+                <option value="duc_duy">Đức Duy — Nam · Sôi nổi</option>
+              </select>
+            </label>
+            <label class="field-label" id="vieneuVoiceLabel">Giọng đọc VieNeu
               <select id="voiceSelect">
                 <option value="Minh Đức">Minh Đức — Nam · Bắc · Tin tức</option>
                 <option value="Phạm Tuyên">Phạm Tuyên — Nam · Bắc · Tự nhiên</option>
@@ -260,7 +308,7 @@
                 <option value="Ngọc Trân">Ngọc Trân — Nữ · Trung · Tự nhiên</option>
               </select>
             </label>
-            <label class="field-label">Phong cách
+            <label class="field-label" id="vieneuStyleLabel">Phong cách
               <select id="styleSelect">
                 <option value="tin_tuc">Tin tức</option>
                 <option value="tu_nhien">Tự nhiên</option>
@@ -563,6 +611,34 @@ Khi so sánh hai khái niệm, hãy nhìn vào điểm khác nhau trong cách đ
       </div>
       <div class="render-settings__foot">
         <button class="render-panel__btn render-panel__btn--confirm" id="infoModalOkBtn" type="button">Đã hiểu</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="render-settings" id="bugLogModal" hidden>
+    <div class="render-settings__backdrop" id="bugLogModalBackdrop"></div>
+    <div class="render-settings__box bug-log-modal-box">
+      <div class="render-settings__head">
+        <strong>Nhật ký hệ thống & Bug Log</strong>
+        <button class="render-panel__close" id="bugLogModalClose" type="button" aria-label="Đóng">×</button>
+      </div>
+      <div class="bug-log-toolbar">
+        <div class="bug-log-filters">
+          <button class="bug-log-filter-btn active" data-filter="all" type="button">Tất cả</button>
+          <button class="bug-log-filter-btn" data-filter="error" type="button">Lỗi <span id="bugErrorCount">(0)</span></button>
+          <button class="bug-log-filter-btn" data-filter="warn" type="button">Cảnh báo</button>
+          <button class="bug-log-filter-btn" data-filter="info" type="button">Thông tin</button>
+        </div>
+        <div class="bug-log-actions">
+          <button class="btn-sub-action" id="copyBugLogBtn" type="button">📋 Sao chép Log</button>
+          <button class="btn-sub-action btn-sub-action--danger" id="clearBugLogBtn" type="button">🗑 Xóa Log</button>
+        </div>
+      </div>
+      <div class="bug-log-container" id="bugLogList">
+        <div class="bug-log-empty">Chưa có nhật ký ghi nhận.</div>
+      </div>
+      <div class="render-settings__foot">
+        <button class="render-panel__btn render-panel__btn--confirm" id="bugLogModalOkBtn" type="button">Đóng</button>
       </div>
     </div>
   </div>

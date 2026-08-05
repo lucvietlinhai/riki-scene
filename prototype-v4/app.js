@@ -32,19 +32,17 @@ const vieneuVoices = [
 ];
 
 function updateVoiceDropdown() {
-  if (!els.ttsEngineSelect || !els.voiceSelect) return;
-  const currentVal = els.voiceSelect.value;
-  els.voiceSelect.innerHTML = "";
-  vieneuVoices.forEach((v) => {
-    const opt = document.createElement("option");
-    opt.value = v.value;
-    opt.textContent = v.text;
-    els.voiceSelect.appendChild(opt);
-  });
-  if (vieneuVoices.some((v) => v.value === currentVal)) {
-    els.voiceSelect.value = currentVal;
-  } else {
-    els.voiceSelect.value = vieneuVoices[0].value;
+  if (!els.ttsEngineSelect) return;
+  const engine = els.ttsEngineSelect.value;
+  const isKokoro = engine === "kokoro";
+
+  if (els.kokoroVoiceLabel) els.kokoroVoiceLabel.hidden = !isKokoro;
+  if (els.vieneuVoiceLabel) els.vieneuVoiceLabel.hidden = isKokoro;
+  if (els.vieneuStyleLabel) {
+    els.vieneuStyleLabel.hidden = isKokoro;
+  } else if (els.styleSelect) {
+    const styleLabel = els.styleSelect.closest(".field-label");
+    if (styleLabel) styleLabel.hidden = isKokoro;
   }
 }
 
@@ -300,6 +298,9 @@ function render() {
   els.lineCount.textContent = list.length;
   els.durationCount.textContent = list.reduce((sum, item) => sum + estimate(item), 0);
   els.timeReadout.textContent = formatTime(list.slice(0, state.sceneIndex).reduce((sum, item) => sum + estimate(item), 0));
+  if (els.actorContextMenu) {
+    els.actorContextMenu.hidden = true;
+  }
   renderHighlight(text);
   renderScenes(list);
   renderTimeline(list);
@@ -589,13 +590,13 @@ els.actorSaveBtn.addEventListener("click", () => {
   showToast("Đã lưu nhân vật mặc định ✓");
 });
 
-let currentPreviewAudio = null;
-
 if (els.previewVoiceBtn) {
+  let currentPreviewAudio = null;
   els.previewVoiceBtn.addEventListener("click", async () => {
-    const voice = els.voiceSelect.value;
-    const style = els.styleSelect.value;
-
+    const engine = els.ttsEngineSelect ? els.ttsEngineSelect.value : "vieneu";
+    const kokoroVoice = els.kokoroVoiceSelect ? els.kokoroVoiceSelect.value : "diem_trinh";
+    const voice = engine === "kokoro" ? kokoroVoice : (els.voiceSelect ? els.voiceSelect.value : "Minh Đức");
+    const style = els.styleSelect ? els.styleSelect.value : "tin_tuc";
     if (currentPreviewAudio) {
       currentPreviewAudio.pause();
       currentPreviewAudio = null;
@@ -610,8 +611,9 @@ if (els.previewVoiceBtn) {
 
       try {
         const result = await window.electronAPI.previewVoice({
-          engine: els.ttsEngineSelect ? els.ttsEngineSelect.value : "vieneu",
+          engine,
           voice,
+          kokoroVoice,
           style,
           bracketLang: els.bracketLangSelect ? els.bracketLangSelect.value : "none",
           jaVoice: els.jaVoiceSelect ? els.jaVoiceSelect.value : "ja-JP-NanamiNeural",
@@ -622,18 +624,23 @@ if (els.previewVoiceBtn) {
         if (result && result.success && result.audio) {
           currentPreviewAudio = new Audio(result.audio);
           currentPreviewAudio.play();
-          showToast(`Đang phát giọng đọc thử: ${voice} (${style}) ✓`);
+          const voiceLabelText = engine === "kokoro" ? `Kokoro: ${kokoroVoice}` : `${voice} (${style})`;
+          addAppLog("info", "TTS Preview", `Phát giọng đọc thử thành công: ${voiceLabelText}`);
+          showToast(`Đang phát giọng đọc thử: ${voiceLabelText} ✓`);
         } else {
-          showToast(`Lỗi nghe thử giọng: ${result?.error || "Không thể tạo audio"}`);
+          const errText = result?.error || "Không thể tạo audio";
+          addAppLog("error", "TTS Preview", `Lỗi nghe thử giọng: ${errText}`);
+          showToast(`Lỗi nghe thử giọng: ${errText}`);
         }
       } catch (err) {
+        addAppLog("error", "TTS Preview", `Lỗi nghe thử giọng: ${err.message}`);
         showToast(`Lỗi nghe thử giọng: ${err.message}`);
       } finally {
         els.previewVoiceBtn.disabled = false;
         if (btnSpan) btnSpan.textContent = originalText;
       }
     } else {
-      showToast(`Giọng đọc chọn: ${voice} (${style}). Chạy trong Electron để phát thử mẫu giọng!`);
+      showToast(`Giọng đọc chọn: ${voice}. Chạy trong Electron để phát thử mẫu giọng!`);
     }
   });
 }
@@ -657,6 +664,7 @@ function buildRenderConfig() {
     leftImage: state.images.left || "",
     rightImage: state.images.right || "",
     voice: els.voiceSelect.value,
+    kokoroVoice: els.kokoroVoiceSelect ? els.kokoroVoiceSelect.value : "diem_trinh",
     style: els.styleSelect.value,
     highlight: els.highlightMode.value,
     fontSize: els.fontSizeInput ? (parseInt(els.fontSizeInput.value, 10) || 40) : 40,
@@ -742,12 +750,14 @@ function appendLog(data) {
 if (typeof window.electronAPI !== "undefined") {
   window.electronAPI.onLog((data) => {
     appendLog(data);
+    const logLevel = (data.type === "error" || data.type === "err") ? "error" : (data.type === "warn" ? "warn" : "info");
+    addAppLog(logLevel, "Renderer", data.text);
     if (data.type === "done") {
       els.renderStatus.textContent = `✓ Xuất video hoàn tất!`;
       els.renderOpenBtn.hidden = false;
       els.renderCancelBtn.hidden = true;
     }
-    if (data.type === "error") {
+    if (data.type === "error" || data.type === "err") {
       ["tts", "frames", "video"].forEach((s) => {
         const el = document.getElementById(`step-${s}`);
         if (el && el.classList.contains("render-step--active")) setStep(s, "error");
@@ -764,9 +774,11 @@ if (typeof window.electronAPI !== "undefined") {
       els.renderOpenBtn.hidden = false;
       els.renderCancelBtn.hidden = true;
       els.renderOpenBtn.dataset.filePath = data.outputFile;
+      addAppLog("info", "Render", `Xuất video hoàn tất: ${data.outputFile}`);
     } else {
       els.renderStatus.textContent = "✗ Render thất bại. Xem log chi tiết bên dưới.";
       els.renderCancelBtn.hidden = false;
+      addAppLog("error", "Render", `Lỗi kết xuất video MP4 (Exit code ${data.code || 1})`);
     }
   });
 
@@ -874,6 +886,260 @@ if (els.infoModalClose) els.infoModalClose.addEventListener("click", () => { els
 if (els.infoModalOkBtn) els.infoModalOkBtn.addEventListener("click", () => { els.infoModal.hidden = true; });
 if (els.infoModalBackdrop) els.infoModalBackdrop.addEventListener("click", () => { els.infoModal.hidden = true; });
 
+function initInteractivePreview() {
+  function makeTitleEditable(el, key) {
+    if (!el) return;
+    el.addEventListener("dblclick", () => {
+      el.contentEditable = "true";
+      el.focus();
+      const range = document.createRange();
+      range.selectNodeContents(el);
+      const sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(range);
+    });
+
+    const commitChange = () => {
+      if (el.contentEditable !== "true") return;
+      el.contentEditable = "false";
+      const newVal = el.textContent.trim();
+      const scopeIdx = state.activeScopeIndex;
+      if (scopeIdx === -1) {
+        state.globalTerms[key] = newVal;
+        if (key === "left" && els.leftTerm) els.leftTerm.value = newVal;
+        if (key === "right" && els.rightTerm) els.rightTerm.value = newVal;
+      } else {
+        if (!state.sceneOverrides[scopeIdx]) {
+          state.sceneOverrides[scopeIdx] = { isCustom: true, leftTerm: "", rightTerm: "", leftImage: "", rightImage: "" };
+        }
+        state.sceneOverrides[scopeIdx].isCustom = true;
+        state.sceneOverrides[scopeIdx][`${key}Term`] = newVal;
+      }
+      render();
+    };
+
+    el.addEventListener("blur", commitChange);
+    el.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        el.blur();
+      }
+    });
+  }
+
+  makeTitleEditable(els.leftTitle, "left");
+  makeTitleEditable(els.rightTitle, "right");
+
+  if (els.leftImageWrap) {
+    els.leftImageWrap.addEventListener("click", () => {
+      if (els.leftUpload) els.leftUpload.click();
+    });
+  }
+  if (els.rightImageWrap) {
+    els.rightImageWrap.addEventListener("click", () => {
+      if (els.rightUpload) els.rightUpload.click();
+    });
+  }
+
+  const poseList = ["point-left", "point-right", "think", "explain-1", "explain-2", "explain-3", "none"];
+  if (els.actorContextMenu) {
+    els.actorContextMenu.hidden = true;
+  }
+
+  if (els.actor) {
+    els.actor.addEventListener("contextmenu", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (els.actorContextMenu) {
+        els.actorContextMenu.hidden = false;
+      }
+    });
+  }
+
+  if (els.actorContextMenu) {
+    els.actorContextMenu.querySelectorAll("button[data-pose]").forEach((btn) => {
+      btn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        const selectedPose = btn.dataset.pose;
+        if (selectedPose) {
+          state.poses[state.sceneIndex] = selectedPose;
+          render();
+        }
+        els.actorContextMenu.hidden = true;
+      });
+    });
+  }
+
+  document.addEventListener("click", (e) => {
+    if (els.actorContextMenu && !els.actorContextMenu.contains(e.target) && !els.actor.contains(e.target)) {
+      els.actorContextMenu.hidden = true;
+    }
+  });
+
+  document.addEventListener("contextmenu", (e) => {
+    if (els.actorContextMenu && !els.actor.contains(e.target) && !els.actorContextMenu.contains(e.target)) {
+      els.actorContextMenu.hidden = true;
+    }
+  });
+
+  if (els.highlightText) {
+    els.highlightText.addEventListener("click", () => {
+      const contentTab = document.querySelector('.tab[data-panel="contentPanel"]');
+      if (contentTab) contentTab.click();
+      if (els.scriptInput) {
+        els.scriptInput.focus();
+        const lines = els.scriptInput.value.split(/\r?\n/);
+        let pos = 0;
+        for (let i = 0; i < Math.min(state.sceneIndex, lines.length); i += 1) {
+          pos += lines[i].length + 1;
+        }
+        els.scriptInput.setSelectionRange(pos, pos + (lines[state.sceneIndex] ? lines[state.sceneIndex].length : 0));
+      }
+    });
+  }
+
+  if (els.previewPhone) {
+    let lastScrollTime = 0;
+    els.previewPhone.addEventListener("wheel", (e) => {
+      const now = Date.now();
+      if (now - lastScrollTime < 180) return;
+      lastScrollTime = now;
+      const list = scenes();
+      if (!list.length) return;
+
+      if (e.deltaY > 0 && state.sceneIndex < list.length - 1) {
+        state.sceneIndex += 1;
+        state.activeScopeIndex = state.sceneIndex;
+        state.wordIndex = 0;
+        render();
+      } else if (e.deltaY < 0 && state.sceneIndex > 0) {
+        state.sceneIndex -= 1;
+        state.activeScopeIndex = state.sceneIndex;
+        state.wordIndex = 0;
+        render();
+      }
+    }, { passive: true });
+  }
+}
+
+const appLogStore = [];
+let currentLogFilter = "all";
+
+function addAppLog(level, source, text) {
+  const now = new Date();
+  const timeStr = now.toTimeString().split(" ")[0];
+  const entry = { timestamp: timeStr, level, source: source || "System", text };
+  appLogStore.push(entry);
+
+  if (level === "error") {
+    if (els.bugLogBtn) els.bugLogBtn.classList.add("btn-bug-log--has-error");
+    if (els.bugLogBadge) els.bugLogBadge.hidden = false;
+  }
+
+  updateBugLogUI();
+}
+
+function updateBugLogUI() {
+  if (!els.bugLogList) return;
+  const errorCount = appLogStore.filter(e => e.level === "error").length;
+  if (els.bugErrorCount) els.bugErrorCount.textContent = `(${errorCount})`;
+
+  const filtered = currentLogFilter === "all" ? appLogStore : appLogStore.filter(e => e.level === currentLogFilter);
+
+  if (!filtered.length) {
+    els.bugLogList.innerHTML = `<div class="bug-log-empty">Chưa có nhật ký ${currentLogFilter !== "all" ? currentLogFilter : ""}.</div>`;
+    return;
+  }
+
+  els.bugLogList.innerHTML = "";
+  filtered.forEach(item => {
+    const div = document.createElement("div");
+    div.className = `bug-log-entry bug-log-entry--${item.level}`;
+
+    const timeSpan = document.createElement("span");
+    timeSpan.className = "bug-log-time";
+    timeSpan.textContent = item.timestamp;
+
+    const tagSpan = document.createElement("span");
+    tagSpan.className = "bug-log-tag";
+    tagSpan.textContent = item.source || item.level;
+
+    const msgSpan = document.createElement("span");
+    msgSpan.className = "bug-log-msg";
+    msgSpan.textContent = item.text;
+
+    div.appendChild(timeSpan);
+    div.appendChild(tagSpan);
+    div.appendChild(msgSpan);
+    els.bugLogList.appendChild(div);
+  });
+
+  els.bugLogList.scrollTop = els.bugLogList.scrollHeight;
+}
+
+function initAppLogger() {
+  addAppLog("info", "App", "Khởi động hệ thống nhật ký Riki Scene logger...");
+
+  window.addEventListener("error", (e) => {
+    addAppLog("error", "JS Runtime", `${e.message} (${e.filename || 'app.js'}:${e.lineno || 0})`);
+  });
+
+  window.addEventListener("unhandledrejection", (e) => {
+    const msg = e.reason ? (e.reason.message || String(e.reason)) : "Unhandled Promise Rejection";
+    addAppLog("error", "Promise", msg);
+  });
+
+  if (els.bugLogBtn) {
+    els.bugLogBtn.addEventListener("click", () => {
+      if (els.bugLogModal) els.bugLogModal.hidden = false;
+    });
+  }
+
+  const closeBugModal = () => {
+    if (els.bugLogModal) els.bugLogModal.hidden = true;
+  };
+
+  if (els.bugLogModalClose) els.bugLogModalClose.addEventListener("click", closeBugModal);
+  if (els.bugLogModalOkBtn) els.bugLogModalOkBtn.addEventListener("click", closeBugModal);
+  if (els.bugLogModalBackdrop) els.bugLogModalBackdrop.addEventListener("click", closeBugModal);
+
+  document.querySelectorAll(".bug-log-filter-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      document.querySelectorAll(".bug-log-filter-btn").forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+      currentLogFilter = btn.dataset.filter || "all";
+      updateBugLogUI();
+    });
+  });
+
+  if (els.copyBugLogBtn) {
+    els.copyBugLogBtn.addEventListener("click", () => {
+      if (!appLogStore.length) {
+        showToast("Không có log để sao chép.");
+        return;
+      }
+      const text = appLogStore.map(e => `[${e.timestamp}] [${e.level.toUpperCase()}] [${e.source}] ${e.text}`).join("\n");
+      if (navigator.clipboard) {
+        navigator.clipboard.writeText(text).then(() => showToast("Đã sao chép toàn bộ log vào Clipboard ✓"));
+      } else {
+        showToast("Không thể sử dụng clipboard");
+      }
+    });
+  }
+
+  if (els.clearBugLogBtn) {
+    els.clearBugLogBtn.addEventListener("click", () => {
+      appLogStore.length = 0;
+      if (els.bugLogBtn) els.bugLogBtn.classList.remove("btn-bug-log--has-error");
+      if (els.bugLogBadge) els.bugLogBadge.hidden = true;
+      updateBugLogUI();
+      showToast("Đã làm sạch nhật ký ứng dụng ✓");
+    });
+  }
+}
+
 updateVoiceDropdown();
 initActorPreviews();
+initInteractivePreview();
+initAppLogger();
 render();

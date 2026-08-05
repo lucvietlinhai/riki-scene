@@ -76,8 +76,8 @@ function ensureTTSEnvironment() {
 }
 
 
-ipcMain.handle("voice:preview", async (_event, { voice, style, text, bracketLang, jaVoice, enVoice, zhVoice, speechRate }) => {
-  const sampleText = text || `Xin chào, đây là giọng đọc ${voice || "Minh Đức"}, chúc bạn tạo ra những video tuyệt vời!`;
+ipcMain.handle("voice:preview", async (_event, { engine, voice, kokoroVoice, style, text, bracketLang, jaVoice, enVoice, zhVoice, speechRate }) => {
+  const sampleText = text || `Xin chào, đây là giọng đọc thử nghiệm!`;
   const outWav = path.join(os.tmpdir(), `voice-preview-${Date.now()}.wav`);
 
   const cmd = ensureTTSEnvironment();
@@ -88,7 +88,9 @@ ipcMain.handle("voice:preview", async (_event, { voice, style, text, bracketLang
     "run",
     "python",
     scriptPath,
+    "--engine", engine || "vieneu",
     "--voice", voice || "Minh Đức",
+    "--kokoro-voice", kokoroVoice || "diem_trinh",
     "--style", style || "tin_tuc",
     "--text", sampleText,
     "--out-wav", outWav,
@@ -164,6 +166,7 @@ ipcMain.on("render:start", (event, config) => {
     leftImage: config.leftImage || "",
     rightImage: config.rightImage || "",
     voice: config.voice || "Minh Đức",
+    kokoroVoice: config.kokoroVoice || "diem_trinh",
     style: config.style || "tin_tuc",
     highlight: config.highlight || "word",
     fontSize: config.fontSize || 40,
@@ -207,7 +210,8 @@ ipcMain.on("render:start", (event, config) => {
     }
   };
 
-  send("info", `Bắt đầu render: ${manifest.scenes.length} cảnh · ${manifest.voice} · ${manifest.style}`);
+  const activeVoiceLabel = manifest.engine === "kokoro" ? `Kokoro (${manifest.kokoroVoice})` : `${manifest.voice} · ${manifest.style}`;
+  send("info", `Bắt đầu render: ${manifest.scenes.length} cảnh · ${activeVoiceLabel}`);
   send("info", `Output: ${outputFile}`);
 
   const child = spawn("node", [rendererScript, "--config", configPath], {
@@ -232,7 +236,7 @@ ipcMain.on("render:start", (event, config) => {
   });
 
   child.stderr.on("data", (data) => {
-    data.toString().split(/\r?\n/).filter(Boolean).forEach((line) => send("err", line));
+    data.toString().split(/\r?\n/).filter(Boolean).forEach((line) => send("out", line));
   });
 
   child.on("close", (code) => {
