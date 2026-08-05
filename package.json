@@ -5,13 +5,58 @@
   "main": "electron-main.js",
   "scripts": {
     "start": "electron .",
-    "setup": "node setup-binaries.js"
+    "setup": "node setup-binaries.js",
+    "pack": "electron-builder --dir",
+    "dist": "electron-builder --win"
   },
   "dependencies": {
     "sharp": "^0.33.5",
     "ffmpeg-static": "^5.2.0"
   },
   "devDependencies": {
-    "electron": "^31.0.0"
+    "electron": "^31.0.0",
+    "electron-builder": "^24.13.3"
+  },
+  "build": {
+    "appId": "com.riki.scene",
+    "productName": "Riki Scene",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "electron-main.js",
+      "preload.js",
+      "package.json",
+      "prototype-v4/**/*",
+      "renderer/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "local-tts",
+        "to": "local-tts",
+        "filter": [
+          "**/*",
+          "!VieNeu-TTS/.venv",
+          "!VieNeu-TTS/.venv/**/*"
+        ]
+      },
+      "bin/**/*",
+      "assets/**/*"
+    ],
+    "asar": true,
+    "asarUnpack": [
+      "renderer/**/*"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "assets/logo.png"
+    }
   }
 }

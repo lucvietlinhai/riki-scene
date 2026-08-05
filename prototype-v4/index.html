@@ -211,10 +211,86 @@
                 <button id="actorScaleIncBtn" type="button" class="btn-step">+</button>
               </div>
             </label>
+            <label class="field-label">Cỡ chữ từ so sánh (px)
+              <div class="font-size-control">
+                <button id="termFontSizeDecBtn" type="button" class="btn-step">-</button>
+                <input id="termFontSizeInput" type="number" min="30" max="120" value="56" />
+                <button id="termFontSizeIncBtn" type="button" class="btn-step">+</button>
+              </div>
+            </label>
+            <label class="field-label field-label--color">Màu chữ nội dung
+              <input id="textColor" type="color" value="#202525" />
+            </label>
+            <label class="field-label field-label--color">Màu chữ Highlight
+              <input id="highlightColor" type="color" value="#3ac6c6" />
+            </label>
+            <label class="field-label">Độ đậm từ so sánh
+              <select id="termFontWeightSelect">
+                <option value="900" selected>900 — Siêu đậm (Black)</option>
+                <option value="700">700 — Đậm (Bold)</option>
+                <option value="600">600 — Đậm vừa (SemiBold)</option>
+                <option value="400">400 — Thường (Normal)</option>
+              </select>
+            </label>
+            <label class="field-label">Độ đậm chữ thuyết minh
+              <select id="subFontWeightSelect">
+                <option value="900">900 — Siêu đậm (Black)</option>
+                <option value="700" selected>700 — Đậm (Bold)</option>
+                <option value="600">600 — Đậm vừa (SemiBold)</option>
+                <option value="400">400 — Thường (Normal)</option>
+              </select>
+            </label>
             <div class="video-bg-row">
-              <span>Màu nền video</span>
-              <input id="videoBg" type="color" value="#ffffff" />
+              <label class="field-label field-label--color">Màu nền
+                <input id="videoBg" type="color" value="#ffffff" />
+              </label>
+              <div class="video-bg-image-box">
+                <span class="field-label-text">Ảnh nền video (Fit 9:16)</span>
+                <div class="bg-image-actions">
+                  <label class="btn-upload btn-upload--sm">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                      stroke-linecap="round" stroke-linejoin="round">
+                      <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                      <circle cx="8.5" cy="8.5" r="1.5" />
+                      <polyline points="21 15 16 10 5 21" />
+                    </svg>
+                    Tải ảnh nền
+                    <input id="videoBgImageUpload" type="file" accept="image/*" />
+                  </label>
+                  <button id="videoBgImageRemoveBtn" type="button" class="btn-remove-image btn-remove-image--sm" hidden>Xóa ảnh nền</button>
+                </div>
+              </div>
             </div>
+          </div>
+          <div class="component-toggle-grid">
+            <label class="toggle-card">
+              <div class="switch">
+                <input id="showSubtitlesToggle" type="checkbox" checked />
+                <span class="slider"></span>
+              </div>
+              <span class="toggle-card__label">💬 Chữ thuyết minh (Sub)</span>
+            </label>
+            <label class="toggle-card">
+              <div class="switch">
+                <input id="showTermsToggle" type="checkbox" checked />
+                <span class="slider"></span>
+              </div>
+              <span class="toggle-card__label">🏷️ Từ so sánh</span>
+            </label>
+            <label class="toggle-card">
+              <div class="switch">
+                <input id="showIllustrationsToggle" type="checkbox" checked />
+                <span class="slider"></span>
+              </div>
+              <span class="toggle-card__label">🖼️ Ảnh minh họa</span>
+            </label>
+            <label class="toggle-card">
+              <div class="switch">
+                <input id="showActorToggle" type="checkbox" checked />
+                <span class="slider"></span>
+              </div>
+              <span class="toggle-card__label">🧍 Nhân vật</span>
+            </label>
           </div>
         </div>
         <div class="panel__section">
@@ -442,14 +518,13 @@ Khi so sánh hai khái niệm, hãy nhìn vào điểm khác nhau trong cách đ
         <div class="script-tip__row">
           <span>💡 <strong>Phát âm mặc định cho [...]:</strong></span>
           <select id="bracketLangSelect" class="script-tip__select">
-            <option value="none">Chưa có phát âm</option>
+            <option value="none" selected>Chưa có phát âm</option>
             <option value="en">Tiếng Anh</option>
             <option value="ja">Tiếng Nhật</option>
             <option value="zh">Tiếng Trung</option>
           </select>
         </div>
-        <div class="script-tip__row" id="voiceRow">
-          <span>🎙️ <strong>Giọng đọc ngoại ngữ:</strong></span>
+        <div class="script-tip__row script-tip__row--nowrap" id="voiceRow">
           <div class="script-tip__voices">
             <select id="jaVoiceSelect" class="script-tip__select" title="Giọng đọc Tiếng Nhật">
               <option value="ja-JP-NanamiNeural">🇯🇵 Nữ (Nanami)</option>
@@ -471,6 +546,13 @@ Khi so sánh hai khái niệm, hãy nhìn vào điểm khác nhau trong cách đ
               <option value="zh-CN-XiaoyiNeural">🇨🇳 Nữ (Xiaoyi)</option>
             </select>
           </div>
+          <select id="foreignSpeechRateSelect" class="script-tip__select" title="Tốc độ đọc ngoại ngữ">
+            <option value="0.8">0.8x</option>
+            <option value="1.0" selected>1.0x</option>
+            <option value="1.15">1.15x</option>
+            <option value="1.3">1.3x</option>
+            <option value="1.5">1.5x</option>
+          </select>
         </div>
         <p class="script-tip__desc">💡 Đặt từ/cụm từ cần phát âm trong <code>[...]</code> và chọn ngôn ngữ ở menu trên, hoặc viết dạng <code>Từ[phiên âm]</code>.</p>
       </div>
@@ -605,7 +687,7 @@ Khi so sánh hai khái niệm, hãy nhìn vào điểm khác nhau trong cách đ
           </div>
           <div class="info-row">
             <span class="info-label">📅 Cập nhật mới (Update):</span>
-            <strong class="info-value">04/08/2026</strong>
+            <strong class="info-value">05/08/2026</strong>
           </div>
         </div>
       </div>

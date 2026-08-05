@@ -5,11 +5,16 @@ const sharp = require("sharp");
 const ffmpegPath = (() => { try { return require("ffmpeg-static"); } catch { return "ffmpeg"; } })();
 
 const root = path.resolve(__dirname, "..");
+const isAsar = root.includes("app.asar");
+const resourcesDir = isAsar ? path.resolve(root, "..") : root;
+
 const uvBin = (() => {
-  const local = path.join(root, "bin", process.platform === "win32" ? "uv.exe" : "uv");
+  const local = path.join(resourcesDir, "bin", process.platform === "win32" ? "uv.exe" : "uv");
   return fs.existsSync(local) ? local : "uv";
 })();
-const workDir = path.join(root, "output", "vieneu-highlight");
+const workDir = isAsar
+  ? path.join(require("os").tmpdir(), "riki-scene-renderer")
+  : path.join(root, "output", "vieneu-highlight");
 const frameDir = path.join(workDir, "svg-frames");
 const pngDir = path.join(workDir, "png-frames");
 const audioDir = path.join(workDir, "audio");
@@ -287,6 +292,7 @@ function makeFrame(scene, sceneIndex, progress, totalScenes, duration, actorFile
   const displayText = scene.displayText || extractDisplayText(scene.text);
   const activeWord = activeWordIndex(speechText, progress);
   const videoBg = manifest.videoBg || "#ffffff";
+  const videoBgImage = manifest.videoBgImage || "";
   const fontFamily = manifest.fontFamily || defaultFontFamily;
   const leftTerm = scene.leftTerm || manifest.leftTerm || "Trái";
   const rightTerm = scene.rightTerm || manifest.rightTerm || "Phải";
@@ -294,12 +300,17 @@ function makeFrame(scene, sceneIndex, progress, totalScenes, duration, actorFile
     left: scene.leftImage || "",
     right: scene.rightImage || ""
   };
-  const hasImages = Boolean(sceneImagePaths.left || sceneImagePaths.right);
-  const hasActor = Boolean(scene.pose && scene.pose !== "none");
+  const showSubtitles = manifest.showSubtitles !== false;
+  const showTerms = manifest.showTerms !== false;
+  const showIllustrations = manifest.showIllustrations !== false;
+  const showActor = manifest.showActor !== false;
+
+  const hasImages = showIllustrations && Boolean(sceneImagePaths.left || sceneImagePaths.right);
+  const hasActor = showActor && Boolean(scene.pose && scene.pose !== "none");
 
   const userFontSize = manifest.fontSize || 40;
   let termsY = 382;
-  let termFontSize = 56;
+  let termFontSize = manifest.termFontSize || 56;
   let highlightY = 900;
   let highlightWidth = 730;
   let highlightFontSize = userFontSize;
@@ -331,20 +342,33 @@ function makeFrame(scene, sceneIndex, progress, totalScenes, duration, actorFile
 
   const actorMarkup = hasActor ? actor(scene.pose, 540, 1380 + Math.sin(progress * Math.PI) * -16, actorFilePaths) : "";
 
+  const bgLayer = videoBgImage
+    ? `<rect width="${width}" height="${height}" fill="${videoBg}"/><image href="${videoBgImage}" x="0" y="0" width="${width}" height="${height}" preserveAspectRatio="xMidYMid slice"/>`
+    : `<rect width="${width}" height="${height}" fill="${videoBg}"/>`;
+
+  const termFontWeight = manifest.termFontWeight || "900";
+  const termsMarkup = showTerms ? `
+  <text x="300" y="${termsY}" text-anchor="middle" font-family="${fontFamily}" font-size="${termFontSize}" font-weight="${termFontWeight}" fill="${manifest.leftColor}">${escapeXml(leftTerm)}</text>
+  <text x="780" y="${termsY}" text-anchor="middle" font-family="${fontFamily}" font-size="${termFontSize}" font-weight="${termFontWeight}" fill="${manifest.rightColor}">${escapeXml(rightTerm)}</text>
+  ` : "";
+
+  const subtitlesMarkup = showSubtitles
+    ? highlightText(displayText, activeWord, 175, highlightY, highlightWidth, 54, highlightFontSize, fontFamily)
+    : "";
+
   return `<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
   <defs>
     <clipPath id="leftClip"><rect x="120" y="410" width="410" height="300" rx="22"/></clipPath>
     <clipPath id="rightClip"><rect x="550" y="410" width="410" height="300" rx="22"/></clipPath>
   </defs>
-  <rect width="${width}" height="${height}" fill="${videoBg}"/>
+  ${bgLayer}
 
-  <text x="300" y="${termsY}" text-anchor="middle" font-family="${fontFamily}" font-size="${termFontSize}" font-weight="900" fill="${manifest.leftColor}">${escapeXml(leftTerm)}</text>
-  <text x="780" y="${termsY}" text-anchor="middle" font-family="${fontFamily}" font-size="${termFontSize}" font-weight="900" fill="${manifest.rightColor}">${escapeXml(rightTerm)}</text>
+  ${termsMarkup}
 
   ${illustrationMarkup}
 
-  ${highlightText(displayText, activeWord, 175, highlightY, highlightWidth, 54, highlightFontSize, fontFamily)}
+  ${subtitlesMarkup}
 
   ${actorMarkup}
 </svg>`;
@@ -389,9 +413,12 @@ function highlightText(text, activeIndex, x, y, maxWidth, lineHeight, customFont
     for (let i = 0; i < lineWords.length; i += 1) {
       const word = lineWords[i];
       const current = wordIndex === activeIndex;
-      const fill = current ? "#3ac6c6" : "#202525";
+      const normalColor = manifest.textColor || "#202525";
+      const highlightColor = manifest.highlightColor || "#3ac6c6";
+      const fill = current ? highlightColor : normalColor;
       const currentSize = current ? activeFontSize : fontSize;
-      const currentWeight = current ? 900 : 700;
+      const baseSubWeight = parseInt(manifest.subFontWeight || "700", 10);
+      const currentWeight = current ? Math.min(900, baseSubWeight + 200) : baseSubWeight;
       const isLastInLine = i === lineWords.length - 1;
       const trailingSpace = isLastInLine ? "" : " ";
 
@@ -501,18 +528,18 @@ function escapeXml(value) {
 }
 
 function ensureTTSEnvironment() {
-  const ttsDir = path.join(root, "local-tts", "VieNeu-TTS");
+  const ttsDir = path.join(resourcesDir, "local-tts", "VieNeu-TTS");
   const pyprojectPath = path.join(ttsDir, "pyproject.toml");
 
   if (!fs.existsSync(pyprojectPath)) {
     console.log("[render] VieNeu-TTS files missing. Running setup-binaries.js...");
-    run("node", [path.join(root, "setup-binaries.js")], root);
+    run("node", [path.join(resourcesDir, "setup-binaries.js")], resourcesDir);
   }
 
-  const uvLocalPath = path.join(root, "bin", process.platform === "win32" ? "uv.exe" : "uv");
+  const uvLocalPath = path.join(resourcesDir, "bin", process.platform === "win32" ? "uv.exe" : "uv");
   if (!fs.existsSync(uvLocalPath)) {
     console.log("[render] uv binary missing. Running setup-binaries.js...");
-    run("node", [path.join(root, "setup-binaries.js")], root);
+    run("node", [path.join(resourcesDir, "setup-binaries.js")], resourcesDir);
   }
 
   const activeUvBin = fs.existsSync(uvLocalPath) ? uvLocalPath : "uv";

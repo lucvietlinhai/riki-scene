@@ -194,6 +194,7 @@ async def main_async():
     en_voice = manifest.get("enVoice", "en-US-AriaNeural")
     zh_voice = manifest.get("zhVoice", "zh-CN-XiaoxiaoNeural")
     speech_rate = float(manifest.get("speechRate", 1.0))
+    foreign_speech_rate = float(manifest.get("foreignSpeechRate", 1.0))
     out_dir = Path(args.out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
 
@@ -259,7 +260,7 @@ async def main_async():
                     # Online Edge-TTS
                     print(f"[render]  └─ Synthesizing online '{seg_text}' using Edge-TTS ({lang})...")
                     try:
-                        await generate_edge_tts(seg_text, lang, seg_wav_path, args.ffmpeg_path, ja_voice=ja_voice, en_voice=en_voice, zh_voice=zh_voice, rate_val=speech_rate)
+                        await generate_edge_tts(seg_text, lang, seg_wav_path, args.ffmpeg_path, ja_voice=ja_voice, en_voice=en_voice, zh_voice=zh_voice, rate_val=foreign_speech_rate)
                         temp_wavs.append(seg_wav_path)
                     except Exception as e:
                         print(f"[WARN] Edge-TTS failed for '{seg_text}' ({lang}): {str(e)}")

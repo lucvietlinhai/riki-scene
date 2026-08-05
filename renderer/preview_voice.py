@@ -167,6 +167,7 @@ async def main_async():
     parser.add_argument("--en-voice", default="en-US-AriaNeural")
     parser.add_argument("--zh-voice", default="zh-CN-XiaoxiaoNeural")
     parser.add_argument("--speech-rate", type=float, default=1.0)
+    parser.add_argument("--foreign-speech-rate", type=float, default=1.0)
     args = parser.parse_args()
 
     out_path = Path(args.out_wav)
@@ -211,7 +212,7 @@ async def main_async():
                 temp_wavs.append(seg_wav_path)
             else:
                 try:
-                    await generate_edge_tts(seg_text, lang, seg_wav_path, args.ffmpeg_path, ja_voice=args.ja_voice, en_voice=args.en_voice, zh_voice=args.zh_voice, rate_val=args.speech_rate)
+                    await generate_edge_tts(seg_text, lang, seg_wav_path, args.ffmpeg_path, ja_voice=args.ja_voice, en_voice=args.en_voice, zh_voice=args.zh_voice, rate_val=args.foreign_speech_rate)
                     temp_wavs.append(seg_wav_path)
                 except Exception as e:
                     # Fallback to local

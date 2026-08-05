@@ -5,7 +5,10 @@ const fs = require("fs");
 const os = require("os");
 
 const ROOT = path.resolve(__dirname);
-const OUTPUT_DIR = path.join(ROOT, "output");
+const RESOURCES_DIR = app.isPackaged ? process.resourcesPath : ROOT;
+const OUTPUT_DIR = app.isPackaged
+  ? path.join(app.getPath("videos"), "RikiScene")
+  : path.join(ROOT, "output");
 const ffmpegPath = (() => { try { return require("ffmpeg-static"); } catch { return "ffmpeg"; } })();
 
 let mainWindow = null;
@@ -49,14 +52,14 @@ ipcMain.handle("dialog:show-save", async (_event, options) => {
 });
 
 function ensureTTSEnvironment() {
-  const ttsDir = path.join(ROOT, "local-tts", "VieNeu-TTS");
+  const ttsDir = path.join(RESOURCES_DIR, "local-tts", "VieNeu-TTS");
   const pyprojectPath = path.join(ttsDir, "pyproject.toml");
-  const uvBin = path.join(ROOT, "bin", process.platform === "win32" ? "uv.exe" : "uv");
+  const uvBin = path.join(RESOURCES_DIR, "bin", process.platform === "win32" ? "uv.exe" : "uv");
 
   if (!fs.existsSync(uvBin) || !fs.existsSync(pyprojectPath) || !fs.existsSync(path.join(ttsDir, ".venv"))) {
     console.log("[Electron] Auto-installing VieNeu-TTS environment...");
-    const setupScript = path.join(ROOT, "setup-binaries.js");
-    spawnSync("node", [setupScript], { cwd: ROOT, stdio: "inherit" });
+    const setupScript = path.join(RESOURCES_DIR, "setup-binaries.js");
+    spawnSync("node", [setupScript], { cwd: RESOURCES_DIR, stdio: "inherit" });
   } else {
     const check = spawnSync(uvBin, ["run", "--project", ttsDir, "python", "-c", "import vieneu"], {
       cwd: ttsDir,
@@ -76,13 +79,13 @@ function ensureTTSEnvironment() {
 }
 
 
-ipcMain.handle("voice:preview", async (_event, { engine, voice, kokoroVoice, style, text, bracketLang, jaVoice, enVoice, zhVoice, speechRate }) => {
+ipcMain.handle("voice:preview", async (_event, { engine, voice, kokoroVoice, style, text, bracketLang, jaVoice, enVoice, zhVoice, speechRate, foreignSpeechRate }) => {
   const sampleText = text || `Xin chào, đây là giọng đọc thử nghiệm!`;
   const outWav = path.join(os.tmpdir(), `voice-preview-${Date.now()}.wav`);
 
   const cmd = ensureTTSEnvironment();
-  const scriptPath = path.join(ROOT, "renderer", "preview_voice.py");
-  const cwdDir = path.join(ROOT, "local-tts", "VieNeu-TTS");
+  const scriptPath = path.join(RESOURCES_DIR, "renderer", "preview_voice.py");
+  const cwdDir = path.join(RESOURCES_DIR, "local-tts", "VieNeu-TTS");
 
   const spawnArgs = [
     "run",
@@ -99,7 +102,8 @@ ipcMain.handle("voice:preview", async (_event, { engine, voice, kokoroVoice, sty
     "--ja-voice", jaVoice || "ja-JP-NanamiNeural",
     "--en-voice", enVoice || "en-US-AriaNeural",
     "--zh-voice", zhVoice || "zh-CN-XiaoxiaoNeural",
-    "--speech-rate", String(speechRate || 1.0)
+    "--speech-rate", String(speechRate || 1.0),
+    "--foreign-speech-rate", String(foreignSpeechRate || 1.0)
   ];
 
   return new Promise((resolve, reject) => {
@@ -170,16 +174,27 @@ ipcMain.on("render:start", (event, config) => {
     style: config.style || "tin_tuc",
     highlight: config.highlight || "word",
     fontSize: config.fontSize || 40,
+    termFontSize: config.termFontSize || 56,
+    termFontWeight: config.termFontWeight || "900",
+    subFontWeight: config.subFontWeight || "700",
     actorScale: config.actorScale || 100,
     fontFamily: config.fontFamily || "Segoe UI, Arial, sans-serif",
     outputPath: outputFile,
     videoBg: config.videoBg || "#ffffff",
+    videoBgImage: config.videoBgImage || "",
+    textColor: config.textColor || "#202525",
+    highlightColor: config.highlightColor || "#3ac6c6",
+    showSubtitles: config.showSubtitles !== undefined ? config.showSubtitles : true,
+    showTerms: config.showTerms !== undefined ? config.showTerms : true,
+    showIllustrations: config.showIllustrations !== undefined ? config.showIllustrations : true,
+    showActor: config.showActor !== undefined ? config.showActor : true,
     actorImages: resolvedActorImages,
     bracketLang: config.bracketLang || "none",
     jaVoice: config.jaVoice || "ja-JP-NanamiNeural",
     enVoice: config.enVoice || "en-US-AriaNeural",
     zhVoice: config.zhVoice || "zh-CN-XiaoxiaoNeural",
     speechRate: config.speechRate || 1.0,
+    foreignSpeechRate: config.foreignSpeechRate || 1.0,
     scenes: (config.scenes || []).map((item, i) => ({
       id: `scene-${i + 1}`,
       text: item.text,
@@ -196,7 +211,7 @@ ipcMain.on("render:start", (event, config) => {
   } catch {}
   fs.writeFileSync(configPath, JSON.stringify(manifest, null, 2), "utf8");
 
-  const rendererScript = path.join(ROOT, "renderer", "render-vieneu-highlight.js");
+  const rendererScript = path.join(ROOT, "renderer", "render-vieneu-highlight.js").replace("app.asar", "app.asar.unpacked");
 
   const send = (type, text) => {
     if (mainWindow && !mainWindow.isDestroyed()) {
@@ -214,9 +229,14 @@ ipcMain.on("render:start", (event, config) => {
   send("info", `Bắt đầu render: ${manifest.scenes.length} cảnh · ${activeVoiceLabel}`);
   send("info", `Output: ${outputFile}`);
 
-  const child = spawn("node", [rendererScript, "--config", configPath], {
-    cwd: ROOT,
-    env: { ...process.env, PYTHONIOENCODING: "utf-8" },
+  const spawnBin = app.isPackaged ? process.execPath : "node";
+  const spawnEnv = app.isPackaged
+    ? { ...process.env, PYTHONIOENCODING: "utf-8", ELECTRON_RUN_AS_NODE: "1" }
+    : { ...process.env, PYTHONIOENCODING: "utf-8" };
+
+  const child = spawn(spawnBin, [rendererScript, "--config", configPath], {
+    cwd: RESOURCES_DIR,
+    env: spawnEnv,
     shell: false,
   });
 

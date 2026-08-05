@@ -10,7 +10,8 @@ const state = {
   poses: [],
   activeScopeIndex: -1,
   globalTerms: { left: "Khách quan", right: "Chủ quan" },
-  sceneOverrides: []
+  sceneOverrides: [],
+  videoBgImage: ""
 };
 const els = Object.fromEntries([...document.querySelectorAll("[id]")].map((el) => [el.id, el]));
 
@@ -85,6 +86,12 @@ if (els.speechRateSelect) {
   els.speechRateSelect.value = localStorage.getItem("riki:settings:speech-rate") || "1.0";
   els.speechRateSelect.addEventListener("change", () => {
     localStorage.setItem("riki:settings:speech-rate", els.speechRateSelect.value);
+  });
+}
+if (els.foreignSpeechRateSelect) {
+  els.foreignSpeechRateSelect.value = localStorage.getItem("riki:settings:foreign-speech-rate") || "1.0";
+  els.foreignSpeechRateSelect.addEventListener("change", () => {
+    localStorage.setItem("riki:settings:foreign-speech-rate", els.foreignSpeechRateSelect.value);
   });
 }
 
@@ -222,7 +229,14 @@ function renderSceneOverrideBar() {
 function render() {
   const list = scenes();
   const phoneEl = document.querySelector(".phone");
-  if (phoneEl) phoneEl.style.setProperty("--video-bg", els.videoBg.value);
+  if (phoneEl) {
+    phoneEl.style.setProperty("--video-bg", els.videoBg.value);
+    if (state.videoBgImage) {
+      phoneEl.style.backgroundImage = `url(${state.videoBgImage})`;
+    } else {
+      phoneEl.style.backgroundImage = "";
+    }
+  }
   state.poses = list.map((text, i) => state.poses[i] || defaultPose(i, text));
   state.sceneOverrides = list.map((_, i) => state.sceneOverrides[i] || { isCustom: false, leftTerm: "", rightTerm: "", leftImage: "", rightImage: "" });
   if (state.sceneIndex >= list.length) state.sceneIndex = Math.max(0, list.length - 1);
@@ -246,6 +260,26 @@ function render() {
   const userFontSize = els.fontSizeInput ? (parseInt(els.fontSizeInput.value, 10) || 40) : 40;
   const previewFontSize = Math.round(userFontSize * 0.38);
   const selectedFont = els.fontSelect ? els.fontSelect.value : "Segoe UI, Arial, sans-serif";
+  // Apply term font size, font weight & component visibility toggles
+  const termFontSize = els.termFontSizeInput ? (parseInt(els.termFontSizeInput.value, 10) || 56) : 56;
+  const previewTermFontSize = Math.round(termFontSize * 0.35);
+  const termFontWeight = els.termFontWeightSelect ? els.termFontWeightSelect.value : "900";
+  els.leftTitle.style.fontSize = `${previewTermFontSize}px`;
+  els.rightTitle.style.fontSize = `${previewTermFontSize}px`;
+  els.leftTitle.style.fontWeight = termFontWeight;
+  els.rightTitle.style.fontWeight = termFontWeight;
+
+  const heroTitle = els.leftTitle.closest(".hero-title");
+  if (heroTitle) heroTitle.style.display = els.showTermsToggle && !els.showTermsToggle.checked ? "none" : "";
+
+  const heroIllus = document.querySelector(".hero-illus");
+  if (heroIllus) heroIllus.style.display = els.showIllustrationsToggle && !els.showIllustrationsToggle.checked ? "none" : "";
+
+  if (els.actor) els.actor.style.display = els.showActorToggle && !els.showActorToggle.checked ? "none" : "";
+
+  const subBox = els.highlightText ? els.highlightText.closest(".subtitle-box, .sub-box, .speech-box") || els.highlightText.parentElement : null;
+  if (subBox) subBox.style.display = els.showSubtitlesToggle && !els.showSubtitlesToggle.checked ? "none" : "";
+
   if (card) {
     card.classList.toggle("card--no-images", !hasImages);
     card.classList.toggle("card--no-actor", !hasActor);
@@ -312,7 +346,16 @@ function renderHighlight(text) {
   const { displayText } = parsePhoneticText(text);
   const words = displayText.split(/\s+/).filter(Boolean);
   const lineMode = els.highlightMode.value === "line";
-  els.highlightText.innerHTML = words.map((word, i) => `<span class="word ${(lineMode || i === state.wordIndex) ? "active-word" : ""}">${escapeHtml(word)}</span>`).join(" ");
+  const normalColor = els.textColor ? els.textColor.value : "#202525";
+  const hlColor = els.highlightColor ? els.highlightColor.value : "#3ac6c6";
+  const subWeight = els.subFontWeightSelect ? els.subFontWeightSelect.value : "700";
+
+  if (els.highlightText) els.highlightText.style.fontWeight = subWeight;
+  els.highlightText.innerHTML = words.map((word, i) => {
+    const active = lineMode || i === state.wordIndex;
+    const color = active ? hlColor : normalColor;
+    return `<span class="word ${active ? "active-word" : ""}" style="color: ${color}">${escapeHtml(word)}</span>`;
+  }).join(" ");
 }
 
 function renderScenes(list) {
@@ -396,6 +439,33 @@ function readImage(file, side) {
   reader.readAsDataURL(file);
 }
 
+function readVideoBgImage(file) {
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    state.videoBgImage = reader.result;
+    if (els.videoBgImageRemoveBtn) els.videoBgImageRemoveBtn.hidden = false;
+    render();
+  };
+  reader.readAsDataURL(file);
+}
+
+if (els.videoBgImageUpload) {
+  els.videoBgImageUpload.addEventListener("change", (e) => {
+    readVideoBgImage(e.target.files[0]);
+    e.target.value = "";
+  });
+}
+
+if (els.videoBgImageRemoveBtn) {
+  els.videoBgImageRemoveBtn.addEventListener("click", () => {
+    state.videoBgImage = "";
+    els.videoBgImageRemoveBtn.hidden = true;
+    render();
+    showToast("Đã xóa ảnh nền video ✓");
+  });
+}
+
 function showToast(message) {
   els.toast.textContent = message;
   els.toast.classList.add("show");
@@ -460,7 +530,26 @@ function removeImage(side) {
   render();
 }
 
-[els.leftColor, els.rightColor, els.videoBg, els.fontSizeInput, els.actorScaleInput, els.fontSelect, els.scriptInput, els.voiceSelect, els.styleSelect, els.highlightMode, els.bracketLangSelect, els.jaVoiceSelect, els.enVoiceSelect, els.zhVoiceSelect, els.speechRateSelect, els.ttsEngineSelect].forEach((item) => { if (item) item.addEventListener("input", render); });
+[els.leftColor, els.rightColor, els.videoBg, els.textColor, els.highlightColor, els.termFontSizeInput, els.termFontWeightSelect, els.subFontWeightSelect, els.fontSizeInput, els.actorScaleInput, els.fontSelect, els.scriptInput, els.voiceSelect, els.styleSelect, els.highlightMode, els.bracketLangSelect, els.jaVoiceSelect, els.enVoiceSelect, els.zhVoiceSelect, els.speechRateSelect, els.foreignSpeechRateSelect, els.ttsEngineSelect, els.showSubtitlesToggle, els.showTermsToggle, els.showIllustrationsToggle, els.showActorToggle].forEach((item) => {
+  if (item) {
+    item.addEventListener("input", render);
+    item.addEventListener("change", render);
+  }
+});
+if (els.termFontSizeDecBtn) {
+  els.termFontSizeDecBtn.addEventListener("click", () => {
+    const cur = parseInt(els.termFontSizeInput.value, 10) || 56;
+    els.termFontSizeInput.value = Math.max(30, cur - 4);
+    render();
+  });
+}
+if (els.termFontSizeIncBtn) {
+  els.termFontSizeIncBtn.addEventListener("click", () => {
+    const cur = parseInt(els.termFontSizeInput.value, 10) || 56;
+    els.termFontSizeInput.value = Math.min(120, cur + 4);
+    render();
+  });
+}
 if (els.fontSizeDecBtn) {
   els.fontSizeDecBtn.addEventListener("click", () => {
     const cur = parseInt(els.fontSizeInput.value, 10) || 40;
@@ -620,6 +709,7 @@ if (els.previewVoiceBtn) {
           enVoice: els.enVoiceSelect ? els.enVoiceSelect.value : "en-US-AriaNeural",
           zhVoice: els.zhVoiceSelect ? els.zhVoiceSelect.value : "zh-CN-XiaoxiaoNeural",
           speechRate: els.speechRateSelect ? parseFloat(els.speechRateSelect.value) || 1.0 : 1.0,
+          foreignSpeechRate: els.foreignSpeechRateSelect ? parseFloat(els.foreignSpeechRateSelect.value) || 1.0 : 1.0,
         });
         if (result && result.success && result.audio) {
           currentPreviewAudio = new Audio(result.audio);
@@ -668,15 +758,26 @@ function buildRenderConfig() {
     style: els.styleSelect.value,
     highlight: els.highlightMode.value,
     fontSize: els.fontSizeInput ? (parseInt(els.fontSizeInput.value, 10) || 40) : 40,
+    termFontSize: els.termFontSizeInput ? (parseInt(els.termFontSizeInput.value, 10) || 56) : 56,
+    termFontWeight: els.termFontWeightSelect ? els.termFontWeightSelect.value : "900",
+    subFontWeight: els.subFontWeightSelect ? els.subFontWeightSelect.value : "700",
     actorScale: els.actorScaleInput ? (parseInt(els.actorScaleInput.value, 10) || 100) : 100,
     fontFamily: els.fontSelect ? els.fontSelect.value : "Segoe UI, Arial, sans-serif",
     videoBg: els.videoBg.value,
+    videoBgImage: state.videoBgImage || "",
+    textColor: els.textColor ? els.textColor.value : "#202525",
+    highlightColor: els.highlightColor ? els.highlightColor.value : "#3ac6c6",
+    showSubtitles: els.showSubtitlesToggle ? els.showSubtitlesToggle.checked : true,
+    showTerms: els.showTermsToggle ? els.showTermsToggle.checked : true,
+    showIllustrations: els.showIllustrationsToggle ? els.showIllustrationsToggle.checked : true,
+    showActor: els.showActorToggle ? els.showActorToggle.checked : true,
     outputPath: settingsState.outputPath,
     bracketLang: els.bracketLangSelect ? els.bracketLangSelect.value : "none",
     jaVoice: els.jaVoiceSelect ? els.jaVoiceSelect.value : "ja-JP-NanamiNeural",
     enVoice: els.enVoiceSelect ? els.enVoiceSelect.value : "en-US-AriaNeural",
     zhVoice: els.zhVoiceSelect ? els.zhVoiceSelect.value : "zh-CN-XiaoxiaoNeural",
     speechRate: els.speechRateSelect ? parseFloat(els.speechRateSelect.value) || 1.0 : 1.0,
+    foreignSpeechRate: els.foreignSpeechRateSelect ? parseFloat(els.foreignSpeechRateSelect.value) || 1.0 : 1.0,
     videoName: settingsState.videoName || "riki-scene-output",
     actorImages: {
       "point-left": actorState["point-left"],
