@@ -12,8 +12,9 @@ const uvBin = (() => {
   const local = path.join(resourcesDir, "bin", process.platform === "win32" ? "uv.exe" : "uv");
   return fs.existsSync(local) ? local : "uv";
 })();
+const os = require("os");
 const workDir = isAsar
-  ? path.join(require("os").tmpdir(), "riki-scene-renderer")
+  ? path.join(os.tmpdir(), "riki-scene-renderer")
   : path.join(root, "output", "vieneu-highlight");
 const frameDir = path.join(workDir, "svg-frames");
 const pngDir = path.join(workDir, "png-frames");
@@ -544,7 +545,31 @@ function actor(pose, x, y, actorFilePaths, scene) {
 }
 
 function resetDir(dir) {
-  fs.rmSync(dir, { recursive: true, force: true });
+  if (fs.existsSync(dir)) {
+    try {
+      fs.rmSync(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 300 });
+    } catch (err) {
+      if (err.code === "EPERM" || err.code === "EBUSY" || err.code === "ENOTEMPTY") {
+        const hint = [
+          ``,
+          `[render] ─────────────────────────────────────────────────────`,
+          `[render] Lỗi: Không thể xoá thư mục tạm "${dir}"`,
+          `[render] Nguyên nhân: Một tiến trình khác đang giữ file trong thư mục này.`,
+          `[render] Giải pháp:`,
+          `[render]   1. Đóng Windows Explorer nếu đang mở thư mục output`,
+          `[render]   2. Đóng trình phát video/nhạc đang mở file trong output`,
+          `[render]   3. Đóng VS Code / Preview nếu đang xem file PNG/WAV`,
+          `[render]   4. Xoá thủ công thư mục: ${dir}`,
+          `[render]   5. Chạy lại lệnh render`,
+          `[render] ─────────────────────────────────────────────────────`,
+          ``,
+        ].join("\n");
+        console.error(hint);
+        process.exit(1);
+      }
+      throw err;
+    }
+  }
   fs.mkdirSync(dir, { recursive: true });
 }
 

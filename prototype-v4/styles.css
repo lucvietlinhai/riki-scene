@@ -2653,21 +2653,3 @@ textarea {
   transform: scale(0.96);
 }
 
-.draggable-zone {
-  cursor: grab;
-  user-select: none;
-  touch-action: none;
-  transition: transform 0.05s ease, box-shadow 0.12s ease;
-}
-
-.draggable-zone:hover {
-  outline: 1px dashed var(--teal-light);
-  outline-offset: 2px;
-}
-
-.draggable-zone.is-dragging {
-  cursor: grabbing;
-  outline: 2px dashed var(--teal-dark);
-  outline-offset: 3px;
-  z-index: 10;
-}

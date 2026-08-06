@@ -222,15 +222,12 @@ function getEffectiveSceneData(i) {
     result[key] = state.globalConfigs[key];
   });
 
-  result.offsets = { termsY: 0, imagesY: 0, contentY: 0, actorY: 0 };
-
   if (custom && custom.isCustom) {
     result.isCustom = true;
     if (custom.leftTerm !== undefined && custom.leftTerm !== "") result.leftTerm = custom.leftTerm;
     if (custom.rightTerm !== undefined && custom.rightTerm !== "") result.rightTerm = custom.rightTerm;
     if (custom.leftImage !== undefined) result.leftImage = custom.leftImage;
     if (custom.rightImage !== undefined) result.rightImage = custom.rightImage;
-    if (custom.offsets) result.offsets = { ...custom.offsets };
 
     configKeys.forEach(key => {
       if (custom[key] !== undefined) {
@@ -380,18 +377,6 @@ function render() {
   if (els.actor) els.actor.style.display = previewData.showActor ? "" : "none";
 
   if (els.highlightText) els.highlightText.style.display = previewData.showSubtitles ? "" : "none";
-
-  // Apply 4-zone drag offsets to preview elements
-  const currentOffsets = previewData.offsets || { termsY: 0, imagesY: 0, contentY: 0, actorY: 0 };
-  const elTerms = document.querySelector(".zone-terms");
-  const elImages = document.querySelector(".zone-images");
-  const elContent = document.querySelector(".zone-content");
-  const elActorZone = document.querySelector(".zone-actor");
-
-  if (elTerms) elTerms.style.transform = `translateY(${currentOffsets.termsY || 0}px)`;
-  if (elImages) elImages.style.transform = `translateY(${currentOffsets.imagesY || 0}px)`;
-  if (elContent) elContent.style.transform = `translateY(${currentOffsets.contentY || 0}px)`;
-  if (elActorZone) elActorZone.style.transform = `translateY(${currentOffsets.actorY || 0}px)`;
 
   if (card) {
     card.classList.toggle("card--no-images", !hasImages);
@@ -979,8 +964,7 @@ function buildRenderConfig() {
         showSubtitles: eff.showSubtitles,
         showTerms: eff.showTerms,
         showIllustrations: eff.showIllustrations,
-        showActor: eff.showActor,
-        offsets: eff.offsets || { termsY: 0, imagesY: 0, contentY: 0, actorY: 0 }
+        showActor: eff.showActor
       };
     }),
   };
@@ -1441,72 +1425,8 @@ function initAppLogger() {
   }
 }
 
-function initZoneDragging() {
-  const zones = [
-    { key: "termsY", selector: ".zone-terms", min: -15, max: 15 },
-    { key: "imagesY", selector: ".zone-images", min: -20, max: 20 },
-    { key: "contentY", selector: ".zone-content", min: -30, max: 30 },
-    { key: "actorY", selector: ".zone-actor", min: -25, max: 25 }
-  ];
-
-  zones.forEach(({ key, selector, min, max }) => {
-    const el = document.querySelector(selector);
-    if (!el) return;
-    el.classList.add("draggable-zone");
-
-    let dragging = false;
-    let startY = 0;
-    let startOff = 0;
-
-    el.addEventListener("pointerdown", (e) => {
-      if (e.target.tagName.toLowerCase() === "select" || e.target.contentEditable === "true") return;
-      dragging = true;
-      startY = e.clientY;
-      const activeIdx = state.activeScopeIndex === -1 ? state.sceneIndex : state.activeScopeIndex;
-      const eff = getEffectiveSceneData(activeIdx);
-      startOff = (eff.offsets && eff.offsets[key]) || 0;
-      el.classList.add("is-dragging");
-      try { el.setPointerCapture(e.pointerId); } catch (_) {}
-    });
-
-    el.addEventListener("pointermove", (e) => {
-      if (!dragging) return;
-      const deltaY = e.clientY - startY;
-      let newOff = startOff + deltaY;
-      newOff = Math.max(min, Math.min(max, newOff));
-      el.style.transform = `translateY(${newOff}px)`;
-    });
-
-    const stop = (e) => {
-      if (!dragging) return;
-      dragging = false;
-      el.classList.remove("is-dragging");
-      try { el.releasePointerCapture(e.pointerId); } catch (_) {}
-      const deltaY = e.clientY - startY;
-      let newOff = startOff + deltaY;
-      newOff = Math.max(min, Math.min(max, newOff));
-
-      const activeIdx = state.activeScopeIndex === -1 ? state.sceneIndex : state.activeScopeIndex;
-      if (!state.sceneOverrides[activeIdx]) {
-        state.sceneOverrides[activeIdx] = { isCustom: true };
-      }
-      state.sceneOverrides[activeIdx].isCustom = true;
-      if (!state.sceneOverrides[activeIdx].offsets) {
-        state.sceneOverrides[activeIdx].offsets = { termsY: 0, imagesY: 0, contentY: 0, actorY: 0 };
-      }
-      state.sceneOverrides[activeIdx].offsets[key] = Math.round(newOff);
-      render();
-      showToast("Đã lưu vị trí tùy chỉnh ✓");
-    };
-
-    el.addEventListener("pointerup", stop);
-    el.addEventListener("pointercancel", stop);
-  });
-}
-
 updateVoiceDropdown();
 initActorPreviews();
 initInteractivePreview();
-initZoneDragging();
 initAppLogger();
 render();
