@@ -1425,8 +1425,47 @@ function initAppLogger() {
   }
 }
 
+function initGitUpdater() {
+  if (!els.updateCodeBtn) return;
+  els.updateCodeBtn.addEventListener("click", async () => {
+    if (!window.electronAPI || typeof window.electronAPI.updateCode !== "function") {
+      alert("Tính năng cập nhật code chỉ hỗ trợ trong môi trường ứng dụng Electron.");
+      return;
+    }
+
+    if (!confirm("Bạn có chắc chắn muốn ép kéo code mới nhất từ Git về và khởi chạy lại ứng dụng không?\n(Lưu ý: Bất kỳ thay đổi local nào sẽ bị ghi đè hoàn toàn)")) {
+      return;
+    }
+
+    const icon = els.updateCodeIcon;
+    els.updateCodeBtn.disabled = true;
+    if (icon) icon.classList.add("spinning");
+
+    addAppLog("info", "GitUpdate", "Đang kết nối Git server và ép ghi đè code mới nhất...");
+
+    try {
+      const res = await window.electronAPI.updateCode();
+      if (res.success) {
+        addAppLog("info", "GitUpdate", res.message);
+        alert(res.message);
+      } else {
+        alert("Lỗi cập nhật: " + res.message);
+        addAppLog("error", "GitUpdate", "Cập nhật thất bại: " + res.message);
+        els.updateCodeBtn.disabled = false;
+        if (icon) icon.classList.remove("spinning");
+      }
+    } catch (err) {
+      alert("Lỗi không xác định: " + err.message);
+      addAppLog("error", "GitUpdate", "Lỗi: " + err.message);
+      els.updateCodeBtn.disabled = false;
+      if (icon) icon.classList.remove("spinning");
+    }
+  });
+}
+
 updateVoiceDropdown();
 initActorPreviews();
 initInteractivePreview();
 initAppLogger();
+initGitUpdater();
 render();

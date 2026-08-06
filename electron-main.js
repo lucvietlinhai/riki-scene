@@ -300,3 +300,36 @@ ipcMain.on("render:open-output", (_event, filePath) => {
     shell.openPath(OUTPUT_DIR);
   }
 });
+
+ipcMain.handle("app:update-code", async () => {
+  return new Promise((resolve) => {
+    exec("git rev-parse --abbrev-ref HEAD", { cwd: ROOT }, (branchErr, branchStdout) => {
+      const branch = (branchErr || !branchStdout || !branchStdout.trim()) ? "main" : branchStdout.trim();
+      const cmd = `git fetch origin ${branch} && git reset --hard origin/${branch}`;
+      
+      console.log(`[Git Update] Running command: ${cmd}`);
+      exec(cmd, { cwd: ROOT }, (error, stdout, stderr) => {
+        if (error) {
+          console.error("[Git Update Error]:", stderr || error.message);
+          return resolve({
+            success: false,
+            message: stderr || error.message || "Không thể kéo code mới từ Git."
+          });
+        }
+
+        console.log("[Git Update Success]:", stdout);
+
+        setTimeout(() => {
+          app.relaunch();
+          app.exit(0);
+        }, 1500);
+
+        resolve({
+          success: true,
+          message: `Đã cập nhật code mới nhất từ branch '${branch}' và ghi đè thay đổi local thành công! App đang tự khởi động lại...`
+        });
+      });
+    });
+  });
+});
+

@@ -25,4 +25,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
   onProgress(callback) {
     ipcRenderer.on("render:progress", (_event, pct) => callback(pct));
   },
+  async updateCode() {
+    return ipcRenderer.invoke("app:update-code");
+  },
 });
