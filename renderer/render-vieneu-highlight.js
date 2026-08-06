@@ -91,11 +91,15 @@ async function main() {
         const fileName = `illus-${side}.${ext}`;
         const filePath = path.join(workDir, fileName);
         fs.writeFileSync(filePath, buffer);
-        imagePaths[side] = base64Data; // Sử dụng trực tiếp base64 cho SVG để tránh lỗi đường dẫn trên Windows
+        imagePaths[side] = base64Data;
         console.log(`[render] Saved illustration image "${side}" to: ${filePath}`);
       }
     }
   }
+
+  // Process global and per-scene videoBgImage as base64 data URIs for SVG rendering in Sharp
+  const globalVideoBgDataUri = toBase64DataUri(manifest.videoBgImage);
+  const sceneVideoBgDataUris = (manifest.scenes || []).map((sc) => toBase64DataUri(sc.videoBgImage) || globalVideoBgDataUri);
 
   // Decode actor images
   const actorFilePaths = {};
@@ -154,7 +158,7 @@ async function main() {
   writeCombinedAudio(tts.items);
   console.log("[PROGRESS:50]");
 
-  await writeFrames(tts.items, actorFilePaths, imagePaths);
+  await writeFrames(tts.items, actorFilePaths, imagePaths, globalVideoBgDataUri, sceneVideoBgDataUris);
   console.log("[PROGRESS:82]");
 
   run(ffmpegPath, [
@@ -207,7 +211,7 @@ function writeCombinedAudio(items) {
   ], root);
 }
 
-async function writeFrames(items, actorFilePaths, imagePaths) {
+async function writeFrames(items, actorFilePaths, imagePaths, globalVideoBgDataUri, sceneVideoBgDataUris) {
   const TARGET_W = 480;
   const TARGET_H = 680;
   const loadedActors = {};
@@ -241,17 +245,18 @@ async function writeFrames(items, actorFilePaths, imagePaths) {
     const hasActor = scene.pose && scene.pose !== "none";
     const actorCanvas = hasActor ? (loadedActors[scene.pose] || null) : null;
 
+    const resolvedVideoBgImage = sceneVideoBgDataUris[sceneIdx] || globalVideoBgDataUri;
     for (let i = 0; i < count; i += 1) {
       const progress = i / Math.max(1, count - 1);
-      const svgString = makeFrame(scene, sceneIdx, progress, items.length, item.duration, actorFilePaths, imagePaths);
+      const svgString = makeFrame(scene, sceneIdx, progress, items.length, item.duration, actorFilePaths, imagePaths, resolvedVideoBgImage);
       const pngPath = path.join(pngDir, `frame-${String(frameNo).padStart(5, "0")}.png`);
 
       const composites = [];
       if (actorCanvas) {
         const actorScalePct = scene.actorScale || manifest.actorScale || 100;
         const userScale = actorScalePct / 100;
-        const targetW = Math.max(80, Math.round(480 * userScale));
-        const targetH = Math.max(100, Math.round(680 * userScale));
+        const targetW = Math.max(80, Math.round(440 * userScale));
+        const targetH = Math.max(100, Math.round(600 * userScale));
 
         const resizedActor = await sharp(actorCanvas)
           .resize(targetW, targetH, { fit: "contain", background: { r: 0, g: 0, b: 0, alpha: 0 } })
@@ -287,80 +292,109 @@ function extractSpeechText(text) {
   return text.replace(/(\S+)\[([^\]]+)\]/g, "$2").replace(/\[([^\]]+)\]/g, "$1").trim();
 }
 
-function makeFrame(scene, sceneIndex, progress, totalScenes, duration, actorFilePaths, imagePaths) {
+function toBase64DataUri(val) {
+  if (!val) return "";
+  if (val.startsWith("data:image/")) return val;
+  if (fs.existsSync(val)) {
+    const ext = path.extname(val).slice(1) || "png";
+    const mime = ext === "jpg" ? "image/jpeg" : `image/${ext}`;
+    const base64 = fs.readFileSync(val).toString("base64");
+    return `data:${mime};base64,${base64}`;
+  }
+  return "";
+}
+
+function makeFrame(scene, sceneIndex, progress, totalScenes, duration, actorFilePaths, imagePaths, resolvedVideoBgImage) {
   const speechText = scene.speechText || extractSpeechText(scene.text);
   const displayText = scene.displayText || extractDisplayText(scene.text);
   const activeWord = activeWordIndex(speechText, progress);
-  const videoBg = manifest.videoBg || "#ffffff";
-  const videoBgImage = manifest.videoBgImage || "";
-  const fontFamily = manifest.fontFamily || defaultFontFamily;
+  const videoBg = scene.videoBg || manifest.videoBg || "#ffffff";
+  const videoBgImage = resolvedVideoBgImage || "";
+  const fontFamily = scene.fontFamily || manifest.fontFamily || defaultFontFamily;
   const leftTerm = scene.leftTerm || manifest.leftTerm || "Trái";
   const rightTerm = scene.rightTerm || manifest.rightTerm || "Phải";
   const sceneImagePaths = {
     left: scene.leftImage || "",
     right: scene.rightImage || ""
   };
-  const showSubtitles = manifest.showSubtitles !== false;
-  const showTerms = manifest.showTerms !== false;
-  const showIllustrations = manifest.showIllustrations !== false;
-  const showActor = manifest.showActor !== false;
+  const showSubtitles = scene.showSubtitles !== undefined ? scene.showSubtitles : (manifest.showSubtitles !== false);
+  const showTerms = scene.showTerms !== undefined ? scene.showTerms : (manifest.showTerms !== false);
+  const showIllustrations = scene.showIllustrations !== undefined ? scene.showIllustrations : (manifest.showIllustrations !== false);
+  const showActor = scene.showActor !== undefined ? scene.showActor : (manifest.showActor !== false);
 
   const hasImages = showIllustrations && Boolean(sceneImagePaths.left || sceneImagePaths.right);
   const hasActor = showActor && Boolean(scene.pose && scene.pose !== "none");
 
-  const userFontSize = manifest.fontSize || 40;
-  let termsY = 382;
-  let termFontSize = manifest.termFontSize || 56;
-  let highlightY = 900;
-  let highlightWidth = 730;
+  const userFontSize = scene.fontSize || manifest.fontSize || 40;
+  let termsY = 110;
+  let termFontSize = scene.termFontSize || manifest.termFontSize || 56;
+  let highlightY = 640;
+  let highlightWidth = 900;
   let highlightFontSize = userFontSize;
 
   if (hasImages && hasActor) {
-    termsY = 382;
-    highlightY = 900;
+    termsY = 110;
+    highlightY = 640;
   } else if (!hasImages && hasActor) {
-    termsY = 480;
+    termsY = 180;
     termFontSize = 64;
-    highlightY = 880;
+    highlightY = 560;
     highlightFontSize = Math.round(userFontSize * 1.15);
   } else if (hasImages && !hasActor) {
-    termsY = 400;
-    highlightY = 1040;
+    termsY = 110;
+    highlightY = 720;
     highlightFontSize = Math.round(userFontSize * 1.15);
   } else {
-    termsY = 620;
+    termsY = 240;
     termFontSize = 72;
-    highlightY = 1000;
-    highlightWidth = 820;
+    highlightY = 680;
+    highlightWidth = 920;
     highlightFontSize = Math.round(userFontSize * 1.3);
   }
 
+  const offsets = scene.offsets || manifest.offsets || { termsY: 0, imagesY: 0, contentY: 0, actorY: 0 };
+  const offTermsY = (offsets.termsY || 0) * 3.6;
+  const offImagesY = (offsets.imagesY || 0) * 3.6;
+  const offContentY = (offsets.contentY || 0) * 3.6;
+  const offActorY = (offsets.actorY || 0) * 3.6;
+
+  termsY = Math.max(40, Math.min(150, termsY + offTermsY));
+  const imgY = Math.max(130, Math.min(220, 160 + offImagesY));
+  highlightY = Math.max(570, Math.min(1200, highlightY + offContentY));
+  const actorY = Math.max(1200, Math.min(1380, 1270 + offActorY));
+
   const illustrationMarkup = hasImages ? `
-    ${leftIllustration(sceneImagePaths)}
-    ${rightIllustration(sceneImagePaths)}
+    ${leftIllustration(sceneImagePaths, imgY)}
+    ${rightIllustration(sceneImagePaths, imgY)}
   ` : "";
 
-  const actorMarkup = hasActor ? actor(scene.pose, 540, 1380 + Math.sin(progress * Math.PI) * -16, actorFilePaths) : "";
+  const actorMarkup = hasActor
+    ? `<g clip-path="url(#actorZoneClip)">${actor(scene.pose, 540, actorY + Math.sin(progress * Math.PI) * -16, actorFilePaths, scene)}</g>`
+    : "";
 
   const bgLayer = videoBgImage
     ? `<rect width="${width}" height="${height}" fill="${videoBg}"/><image href="${videoBgImage}" x="0" y="0" width="${width}" height="${height}" preserveAspectRatio="xMidYMid slice"/>`
     : `<rect width="${width}" height="${height}" fill="${videoBg}"/>`;
 
-  const termFontWeight = manifest.termFontWeight || "900";
+  const termFontWeight = scene.termFontWeight || manifest.termFontWeight || "900";
+  const leftColor = scene.leftColor || manifest.leftColor;
+  const rightColor = scene.rightColor || manifest.rightColor;
   const termsMarkup = showTerms ? `
-  <text x="300" y="${termsY}" text-anchor="middle" font-family="${fontFamily}" font-size="${termFontSize}" font-weight="${termFontWeight}" fill="${manifest.leftColor}">${escapeXml(leftTerm)}</text>
-  <text x="780" y="${termsY}" text-anchor="middle" font-family="${fontFamily}" font-size="${termFontSize}" font-weight="${termFontWeight}" fill="${manifest.rightColor}">${escapeXml(rightTerm)}</text>
+  <text x="300" y="${termsY}" text-anchor="middle" font-family="${fontFamily}" font-size="${termFontSize}" font-weight="${termFontWeight}" fill="${leftColor}">${escapeXml(leftTerm)}</text>
+  <text x="780" y="${termsY}" text-anchor="middle" font-family="${fontFamily}" font-size="${termFontSize}" font-weight="${termFontWeight}" fill="${rightColor}">${escapeXml(rightTerm)}</text>
   ` : "";
 
   const subtitlesMarkup = showSubtitles
-    ? highlightText(displayText, activeWord, 175, highlightY, highlightWidth, 54, highlightFontSize, fontFamily)
+    ? `<g clip-path="url(#contentZoneClip)">${highlightText(displayText, activeWord, 90, highlightY, highlightWidth, 60, highlightFontSize, fontFamily, scene)}</g>`
     : "";
 
   return `<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
   <defs>
-    <clipPath id="leftClip"><rect x="120" y="410" width="410" height="300" rx="22"/></clipPath>
-    <clipPath id="rightClip"><rect x="550" y="410" width="410" height="300" rx="22"/></clipPath>
+    <clipPath id="leftClip"><rect x="75" y="${imgY}" width="440" height="380" rx="22"/></clipPath>
+    <clipPath id="rightClip"><rect x="565" y="${imgY}" width="440" height="380" rx="22"/></clipPath>
+    <clipPath id="contentZoneClip"><rect x="40" y="560" width="1000" height="700"/></clipPath>
+    <clipPath id="actorZoneClip"><rect x="0" y="1270" width="1080" height="650"/></clipPath>
   </defs>
   ${bgLayer}
 
@@ -374,30 +408,30 @@ function makeFrame(scene, sceneIndex, progress, totalScenes, duration, actorFile
 </svg>`;
 }
 
-function leftIllustration(imagePaths) {
+function leftIllustration(imagePaths, imgY = 160) {
   if (imagePaths && imagePaths.left) {
     return `<g clip-path="url(#leftClip)">
-    <rect x="120" y="410" width="410" height="300" rx="22" fill="#dde8ef"/>
-    <image x="120" y="410" width="410" height="300" xlink:href="${imagePaths.left}" preserveAspectRatio="xMidYMid slice"/>
+    <rect x="75" y="${imgY}" width="440" height="380" rx="22" fill="#dde8ef"/>
+    <image x="75" y="${imgY}" width="440" height="380" xlink:href="${imagePaths.left}" preserveAspectRatio="xMidYMid slice"/>
   </g>`;
   }
   return "";
 }
 
-function rightIllustration(imagePaths) {
+function rightIllustration(imagePaths, imgY = 160) {
   if (imagePaths && imagePaths.right) {
     return `<g clip-path="url(#rightClip)">
-    <rect x="550" y="410" width="410" height="300" rx="22" fill="#d5e8d0"/>
-    <image x="550" y="410" width="410" height="300" xlink:href="${imagePaths.right}" preserveAspectRatio="xMidYMid slice"/>
+    <rect x="565" y="${imgY}" width="440" height="380" rx="22" fill="#d5e8d0"/>
+    <image x="565" y="${imgY}" width="440" height="380" xlink:href="${imagePaths.right}" preserveAspectRatio="xMidYMid slice"/>
   </g>`;
   }
   return "";
 }
 
-function highlightText(text, activeIndex, x, y, maxWidth, lineHeight, customFontSize, resolvedFontFamily) {
+function highlightText(text, activeIndex, x, y, maxWidth, lineHeight, customFontSize, resolvedFontFamily, scene) {
   const normalized = text.normalize("NFC");
   const words = normalized.split(/\s+/).filter(Boolean);
-  const fontSize = customFontSize || manifest.fontSize || 40;
+  const fontSize = customFontSize || (scene && scene.fontSize) || manifest.fontSize || 40;
   const activeFontSize = Math.round(fontSize * 1.1);
   const effectiveLineHeight = Math.max(lineHeight || 54, Math.round(fontSize * 1.35));
   const lines = layoutWords(words, maxWidth, fontSize);
@@ -413,11 +447,11 @@ function highlightText(text, activeIndex, x, y, maxWidth, lineHeight, customFont
     for (let i = 0; i < lineWords.length; i += 1) {
       const word = lineWords[i];
       const current = wordIndex === activeIndex;
-      const normalColor = manifest.textColor || "#202525";
-      const highlightColor = manifest.highlightColor || "#3ac6c6";
+      const normalColor = (scene && scene.textColor) || manifest.textColor || "#202525";
+      const highlightColor = (scene && scene.highlightColor) || manifest.highlightColor || "#3ac6c6";
       const fill = current ? highlightColor : normalColor;
       const currentSize = current ? activeFontSize : fontSize;
-      const baseSubWeight = parseInt(manifest.subFontWeight || "700", 10);
+      const baseSubWeight = parseInt((scene && scene.subFontWeight) || manifest.subFontWeight || "700", 10);
       const currentWeight = current ? Math.min(900, baseSubWeight + 200) : baseSubWeight;
       const isLastInLine = i === lineWords.length - 1;
       const trailingSpace = isLastInLine ? "" : " ";
@@ -474,7 +508,7 @@ function activeWordIndex(text, progress) {
   return Math.min(count - 1, Math.max(0, Math.floor(progress * count)));
 }
 
-function actor(pose, x, y, actorFilePaths) {
+function actor(pose, x, y, actorFilePaths, scene) {
   const filePath = actorFilePaths && actorFilePaths[pose];
   if (filePath) {
     return `<g transform="translate(${x} ${y})"></g>`;
@@ -494,13 +528,14 @@ function actor(pose, x, y, actorFilePaths) {
   };
   const leftArm = leftArmAngles[pose] !== undefined ? leftArmAngles[pose] : 26;
   const rightArm = rightArmAngles[pose] !== undefined ? rightArmAngles[pose] : -30;
-  const userScale = (manifest.actorScale || 100) / 100;
-  const scale = 1.85 * userScale;
+  const userScale = (((scene && scene.actorScale) !== undefined ? scene.actorScale : manifest.actorScale) || 100) / 100;
+  const scale = 1.62 * userScale;
+  const bodyColor = (scene && scene.highlightColor) || manifest.highlightColor || "#3ac6c6";
   return `<g transform="translate(${x} ${y}) scale(${scale})">
     <circle cx="0" cy="0" r="58" fill="#f1bd78" stroke="#202525" stroke-width="6"/>
     <circle cx="-19" cy="-3" r="6" fill="#202525"/><circle cx="19" cy="-3" r="6" fill="#202525"/>
     <path d="M-18 26Q0 38 18 26" fill="none" stroke="#202525" stroke-width="5" stroke-linecap="round"/>
-    <rect x="-46" y="62" width="92" height="150" rx="24" fill="#3ac6c6" stroke="#202525" stroke-width="6"/>
+    <rect x="-46" y="62" width="92" height="150" rx="24" fill="${bodyColor}" stroke="#202525" stroke-width="6"/>
     <rect x="-81" y="80" width="26" height="138" rx="13" fill="#202525" transform="rotate(${leftArm} -68 86)"/>
     <rect x="55" y="80" width="26" height="138" rx="13" fill="#202525" transform="rotate(${rightArm} 68 86)"/>
     <rect x="-34" y="205" width="28" height="104" rx="14" fill="#202525" transform="rotate(8 -20 212)"/>

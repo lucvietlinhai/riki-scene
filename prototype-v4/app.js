@@ -11,9 +11,50 @@ const state = {
   activeScopeIndex: -1,
   globalTerms: { left: "Khách quan", right: "Chủ quan" },
   sceneOverrides: [],
-  videoBgImage: ""
+  videoBgImage: "",
+  globalConfigs: {}
 };
 const els = Object.fromEntries([...document.querySelectorAll("[id]")].map((el) => [el.id, el]));
+
+const CONFIG_KEYS = {
+  leftColor: "leftColor",
+  rightColor: "rightColor",
+  videoBg: "videoBg",
+  textColor: "textColor",
+  highlightColor: "highlightColor",
+  termFontSizeInput: "termFontSize",
+  termFontWeightSelect: "termFontWeight",
+  subFontWeightSelect: "subFontWeight",
+  fontSizeInput: "fontSize",
+  actorScaleInput: "actorScale",
+  fontSelect: "fontFamily",
+  showSubtitlesToggle: "showSubtitles",
+  showTermsToggle: "showTerms",
+  showIllustrationsToggle: "showIllustrations",
+  showActorToggle: "showActor"
+};
+
+function initGlobalConfigs() {
+  state.globalConfigs = {
+    leftColor: els.leftColor ? els.leftColor.value : "#b92c1e",
+    rightColor: els.rightColor ? els.rightColor.value : "#5d9a4d",
+    textColor: els.textColor ? els.textColor.value : "#202525",
+    highlightColor: els.highlightColor ? els.highlightColor.value : "#3ac6c6",
+    fontSize: els.fontSizeInput ? (parseInt(els.fontSizeInput.value, 10) || 40) : 40,
+    termFontSize: els.termFontSizeInput ? (parseInt(els.termFontSizeInput.value, 10) || 56) : 56,
+    termFontWeight: els.termFontWeightSelect ? els.termFontWeightSelect.value : "900",
+    subFontWeight: els.subFontWeightSelect ? els.subFontWeightSelect.value : "700",
+    actorScale: els.actorScaleInput ? (parseInt(els.actorScaleInput.value, 10) || 100) : 100,
+    fontFamily: els.fontSelect ? els.fontSelect.value : "Segoe UI, Arial, sans-serif",
+    videoBg: els.videoBg ? els.videoBg.value : "#ffffff",
+    videoBgImage: state.videoBgImage || "",
+    showSubtitles: els.showSubtitlesToggle ? els.showSubtitlesToggle.checked : true,
+    showTerms: els.showTermsToggle ? els.showTermsToggle.checked : true,
+    showIllustrations: els.showIllustrationsToggle ? els.showIllustrationsToggle.checked : true,
+    showActor: els.showActorToggle ? els.showActorToggle.checked : true
+  };
+}
+initGlobalConfigs();
 
 const vieneuVoices = [
   { value: "Minh Đức", text: "Minh Đức — Nam · Bắc · Tin tức" },
@@ -159,22 +200,46 @@ function getEffectiveSceneData(i) {
   const custom = state.sceneOverrides[i];
   const gLeftTerm = state.globalTerms.left;
   const gRightTerm = state.globalTerms.right;
-  if (custom && custom.isCustom) {
-    return {
-      leftTerm: custom.leftTerm !== undefined && custom.leftTerm !== "" ? custom.leftTerm : gLeftTerm,
-      rightTerm: custom.rightTerm !== undefined && custom.rightTerm !== "" ? custom.rightTerm : gRightTerm,
-      leftImage: custom.leftImage || state.images.left || "",
-      rightImage: custom.rightImage || state.images.right || "",
-      isCustom: true
-    };
-  }
-  return {
+  const gLeftImage = state.images.left || "";
+  const gRightImage = state.images.right || "";
+  
+  const result = {
     leftTerm: gLeftTerm,
     rightTerm: gRightTerm,
-    leftImage: state.images.left || "",
-    rightImage: state.images.right || "",
+    leftImage: gLeftImage,
+    rightImage: gRightImage,
     isCustom: false
   };
+
+  const configKeys = [
+    "leftColor", "rightColor", "textColor", "highlightColor",
+    "fontSize", "termFontSize", "termFontWeight", "subFontWeight",
+    "actorScale", "fontFamily", "videoBg", "videoBgImage",
+    "showSubtitles", "showTerms", "showIllustrations", "showActor"
+  ];
+
+  configKeys.forEach(key => {
+    result[key] = state.globalConfigs[key];
+  });
+
+  result.offsets = { termsY: 0, imagesY: 0, contentY: 0, actorY: 0 };
+
+  if (custom && custom.isCustom) {
+    result.isCustom = true;
+    if (custom.leftTerm !== undefined && custom.leftTerm !== "") result.leftTerm = custom.leftTerm;
+    if (custom.rightTerm !== undefined && custom.rightTerm !== "") result.rightTerm = custom.rightTerm;
+    if (custom.leftImage !== undefined) result.leftImage = custom.leftImage;
+    if (custom.rightImage !== undefined) result.rightImage = custom.rightImage;
+    if (custom.offsets) result.offsets = { ...custom.offsets };
+
+    configKeys.forEach(key => {
+      if (custom[key] !== undefined) {
+        result[key] = custom[key];
+      }
+    });
+  }
+
+  return result;
 }
 
 function renderScopeNav(list) {
@@ -228,15 +293,53 @@ function renderSceneOverrideBar() {
 
 function render() {
   const list = scenes();
+
+  // Sync inputs with active scope configuration
+  const currentConfig = state.activeScopeIndex === -1
+    ? {
+        leftImage: state.images.left,
+        rightImage: state.images.right,
+        leftTerm: state.globalTerms.left,
+        rightTerm: state.globalTerms.right,
+        ...state.globalConfigs
+      }
+    : getEffectiveSceneData(state.activeScopeIndex);
+
+  if (els.leftTerm) els.leftTerm.value = currentConfig.leftTerm || "";
+  if (els.rightTerm) els.rightTerm.value = currentConfig.rightTerm || "";
+  if (els.leftColor) els.leftColor.value = currentConfig.leftColor || "#b92c1e";
+  if (els.rightColor) els.rightColor.value = currentConfig.rightColor || "#5d9a4d";
+  if (els.videoBg) els.videoBg.value = currentConfig.videoBg || "#ffffff";
+  if (els.textColor) els.textColor.value = currentConfig.textColor || "#202525";
+  if (els.highlightColor) els.highlightColor.value = currentConfig.highlightColor || "#3ac6c6";
+  if (els.termFontSizeInput) els.termFontSizeInput.value = currentConfig.termFontSize || 56;
+  if (els.termFontWeightSelect) els.termFontWeightSelect.value = currentConfig.termFontWeight || "900";
+  if (els.subFontWeightSelect) els.subFontWeightSelect.value = currentConfig.subFontWeight || "700";
+  if (els.fontSizeInput) els.fontSizeInput.value = currentConfig.fontSize || 40;
+  if (els.actorScaleInput) els.actorScaleInput.value = currentConfig.actorScale || 100;
+  if (els.fontSelect) els.fontSelect.value = currentConfig.fontFamily || "Segoe UI, Arial, sans-serif";
+  
+  if (els.showSubtitlesToggle) els.showSubtitlesToggle.checked = currentConfig.showSubtitles !== false;
+  if (els.showTermsToggle) els.showTermsToggle.checked = currentConfig.showTerms !== false;
+  if (els.showIllustrationsToggle) els.showIllustrationsToggle.checked = currentConfig.showIllustrations !== false;
+  if (els.showActorToggle) els.showActorToggle.checked = currentConfig.showActor !== false;
+
+  if (els.videoBgImageRemoveBtn) {
+    els.videoBgImageRemoveBtn.hidden = !currentConfig.videoBgImage;
+  }
+
   const phoneEl = document.querySelector(".phone");
+  const previewData = getEffectiveSceneData(state.sceneIndex);
+
   if (phoneEl) {
-    phoneEl.style.setProperty("--video-bg", els.videoBg.value);
-    if (state.videoBgImage) {
-      phoneEl.style.backgroundImage = `url(${state.videoBgImage})`;
+    phoneEl.style.setProperty("--video-bg", previewData.videoBg);
+    if (previewData.videoBgImage) {
+      phoneEl.style.backgroundImage = `url(${previewData.videoBgImage})`;
     } else {
       phoneEl.style.backgroundImage = "";
     }
   }
+
   state.poses = list.map((text, i) => state.poses[i] || defaultPose(i, text));
   state.sceneOverrides = list.map((_, i) => state.sceneOverrides[i] || { isCustom: false, leftTerm: "", rightTerm: "", leftImage: "", rightImage: "" });
   if (state.sceneIndex >= list.length) state.sceneIndex = Math.max(0, list.length - 1);
@@ -245,11 +348,10 @@ function render() {
   const text = list[state.sceneIndex] || "";
   const pose = state.poses[state.sceneIndex] || "point-left";
 
-  const previewData = getEffectiveSceneData(state.sceneIndex);
   els.leftTitle.textContent = previewData.leftTerm;
   els.rightTitle.textContent = previewData.rightTerm;
-  els.leftTitle.style.color = els.leftColor.value;
-  els.rightTitle.style.color = els.rightColor.value;
+  els.leftTitle.style.color = previewData.leftColor;
+  els.rightTitle.style.color = previewData.rightColor;
   els.leftImage.src = previewData.leftImage || "";
   els.rightImage.src = previewData.rightImage || "";
 
@@ -257,28 +359,39 @@ function render() {
   const hasImages = Boolean(previewData.leftImage || previewData.rightImage);
   const hasActor = Boolean(pose !== "none");
   const card = document.querySelector(".card");
-  const userFontSize = els.fontSizeInput ? (parseInt(els.fontSizeInput.value, 10) || 40) : 40;
+  const userFontSize = previewData.fontSize;
   const previewFontSize = Math.round(userFontSize * 0.38);
-  const selectedFont = els.fontSelect ? els.fontSelect.value : "Segoe UI, Arial, sans-serif";
+  const selectedFont = previewData.fontFamily;
   // Apply term font size, font weight & component visibility toggles
-  const termFontSize = els.termFontSizeInput ? (parseInt(els.termFontSizeInput.value, 10) || 56) : 56;
+  const termFontSize = previewData.termFontSize;
   const previewTermFontSize = Math.round(termFontSize * 0.35);
-  const termFontWeight = els.termFontWeightSelect ? els.termFontWeightSelect.value : "900";
+  const termFontWeight = previewData.termFontWeight;
   els.leftTitle.style.fontSize = `${previewTermFontSize}px`;
   els.rightTitle.style.fontSize = `${previewTermFontSize}px`;
   els.leftTitle.style.fontWeight = termFontWeight;
   els.rightTitle.style.fontWeight = termFontWeight;
 
   const heroTitle = els.leftTitle.closest(".hero-title");
-  if (heroTitle) heroTitle.style.display = els.showTermsToggle && !els.showTermsToggle.checked ? "none" : "";
+  if (heroTitle) heroTitle.style.display = previewData.showTerms ? "" : "none";
 
   const heroIllus = document.querySelector(".hero-illus");
-  if (heroIllus) heroIllus.style.display = els.showIllustrationsToggle && !els.showIllustrationsToggle.checked ? "none" : "";
+  if (heroIllus) heroIllus.style.display = previewData.showIllustrations ? "" : "none";
 
-  if (els.actor) els.actor.style.display = els.showActorToggle && !els.showActorToggle.checked ? "none" : "";
+  if (els.actor) els.actor.style.display = previewData.showActor ? "" : "none";
 
-  const subBox = els.highlightText ? els.highlightText.closest(".subtitle-box, .sub-box, .speech-box") || els.highlightText.parentElement : null;
-  if (subBox) subBox.style.display = els.showSubtitlesToggle && !els.showSubtitlesToggle.checked ? "none" : "";
+  if (els.highlightText) els.highlightText.style.display = previewData.showSubtitles ? "" : "none";
+
+  // Apply 4-zone drag offsets to preview elements
+  const currentOffsets = previewData.offsets || { termsY: 0, imagesY: 0, contentY: 0, actorY: 0 };
+  const elTerms = document.querySelector(".zone-terms");
+  const elImages = document.querySelector(".zone-images");
+  const elContent = document.querySelector(".zone-content");
+  const elActorZone = document.querySelector(".zone-actor");
+
+  if (elTerms) elTerms.style.transform = `translateY(${currentOffsets.termsY || 0}px)`;
+  if (elImages) elImages.style.transform = `translateY(${currentOffsets.imagesY || 0}px)`;
+  if (elContent) elContent.style.transform = `translateY(${currentOffsets.contentY || 0}px)`;
+  if (elActorZone) elActorZone.style.transform = `translateY(${currentOffsets.actorY || 0}px)`;
 
   if (card) {
     card.classList.toggle("card--no-images", !hasImages);
@@ -444,6 +557,7 @@ function readVideoBgImage(file) {
   const reader = new FileReader();
   reader.onload = () => {
     state.videoBgImage = reader.result;
+    state.globalConfigs.videoBgImage = reader.result;
     if (els.videoBgImageRemoveBtn) els.videoBgImageRemoveBtn.hidden = false;
     render();
   };
@@ -460,6 +574,7 @@ if (els.videoBgImageUpload) {
 if (els.videoBgImageRemoveBtn) {
   els.videoBgImageRemoveBtn.addEventListener("click", () => {
     state.videoBgImage = "";
+    state.globalConfigs.videoBgImage = "";
     els.videoBgImageRemoveBtn.hidden = true;
     render();
     showToast("Đã xóa ảnh nền video ✓");
@@ -530,52 +645,85 @@ function removeImage(side) {
   render();
 }
 
-[els.leftColor, els.rightColor, els.videoBg, els.textColor, els.highlightColor, els.termFontSizeInput, els.termFontWeightSelect, els.subFontWeightSelect, els.fontSizeInput, els.actorScaleInput, els.fontSelect, els.scriptInput, els.voiceSelect, els.styleSelect, els.highlightMode, els.bracketLangSelect, els.jaVoiceSelect, els.enVoiceSelect, els.zhVoiceSelect, els.speechRateSelect, els.foreignSpeechRateSelect, els.ttsEngineSelect, els.showSubtitlesToggle, els.showTermsToggle, els.showIllustrationsToggle, els.showActorToggle].forEach((item) => {
+// Non-styling config inputs still use simple render listeners
+[els.scriptInput, els.voiceSelect, els.styleSelect, els.highlightMode, els.bracketLangSelect, els.jaVoiceSelect, els.enVoiceSelect, els.zhVoiceSelect, els.speechRateSelect, els.foreignSpeechRateSelect, els.ttsEngineSelect].forEach((item) => {
   if (item) {
     item.addEventListener("input", render);
     item.addEventListener("change", render);
   }
 });
+
+// Styling config inputs automatically update global or per-scene state
+Object.entries(CONFIG_KEYS).forEach(([elId, key]) => {
+  const item = els[elId];
+  if (item) {
+    const handler = () => {
+      let val;
+      if (item.type === "checkbox") {
+        val = item.checked;
+      } else if (item.tagName === "INPUT" && (elId.includes("Size") || elId.includes("Scale"))) {
+        val = parseInt(item.value, 10) || 0;
+      } else {
+        val = item.value;
+      }
+      
+      if (state.activeScopeIndex === -1) {
+        state.globalConfigs[key] = val;
+      } else {
+        const idx = state.activeScopeIndex;
+        if (!state.sceneOverrides[idx]) {
+          state.sceneOverrides[idx] = { isCustom: true };
+        }
+        state.sceneOverrides[idx].isCustom = true;
+        state.sceneOverrides[idx][key] = val;
+      }
+      render();
+    };
+    item.addEventListener("input", handler);
+    item.addEventListener("change", handler);
+  }
+});
+
 if (els.termFontSizeDecBtn) {
   els.termFontSizeDecBtn.addEventListener("click", () => {
     const cur = parseInt(els.termFontSizeInput.value, 10) || 56;
     els.termFontSizeInput.value = Math.max(30, cur - 4);
-    render();
+    els.termFontSizeInput.dispatchEvent(new Event("change"));
   });
 }
 if (els.termFontSizeIncBtn) {
   els.termFontSizeIncBtn.addEventListener("click", () => {
     const cur = parseInt(els.termFontSizeInput.value, 10) || 56;
     els.termFontSizeInput.value = Math.min(120, cur + 4);
-    render();
+    els.termFontSizeInput.dispatchEvent(new Event("change"));
   });
 }
 if (els.fontSizeDecBtn) {
   els.fontSizeDecBtn.addEventListener("click", () => {
     const cur = parseInt(els.fontSizeInput.value, 10) || 40;
     els.fontSizeInput.value = Math.max(20, cur - 2);
-    render();
+    els.fontSizeInput.dispatchEvent(new Event("change"));
   });
 }
 if (els.fontSizeIncBtn) {
   els.fontSizeIncBtn.addEventListener("click", () => {
     const cur = parseInt(els.fontSizeInput.value, 10) || 40;
     els.fontSizeInput.value = Math.min(80, cur + 2);
-    render();
+    els.fontSizeInput.dispatchEvent(new Event("change"));
   });
 }
 if (els.actorScaleDecBtn) {
   els.actorScaleDecBtn.addEventListener("click", () => {
     const cur = parseInt(els.actorScaleInput.value, 10) || 100;
     els.actorScaleInput.value = Math.max(30, cur - 5);
-    render();
+    els.actorScaleInput.dispatchEvent(new Event("change"));
   });
 }
 if (els.actorScaleIncBtn) {
   els.actorScaleIncBtn.addEventListener("click", () => {
     const cur = parseInt(els.actorScaleInput.value, 10) || 100;
     els.actorScaleInput.value = Math.min(250, cur + 5);
-    render();
+    els.actorScaleInput.dispatchEvent(new Event("change"));
   });
 }
 els.leftUpload.addEventListener("change", (event) => readImage(event.target.files[0], "left"));
@@ -597,6 +745,22 @@ if (els.enableOverrideBtn) {
         rightTerm: eff.rightTerm,
         leftImage: eff.leftImage,
         rightImage: eff.rightImage,
+        leftColor: eff.leftColor,
+        rightColor: eff.rightColor,
+        textColor: eff.textColor,
+        highlightColor: eff.highlightColor,
+        fontSize: eff.fontSize,
+        termFontSize: eff.termFontSize,
+        termFontWeight: eff.termFontWeight,
+        subFontWeight: eff.subFontWeight,
+        actorScale: eff.actorScale,
+        fontFamily: eff.fontFamily,
+        videoBg: eff.videoBg,
+        videoBgImage: eff.videoBgImage,
+        showSubtitles: eff.showSubtitles,
+        showTerms: eff.showTerms,
+        showIllustrations: eff.showIllustrations,
+        showActor: eff.showActor
       };
       render();
     }
@@ -800,6 +964,23 @@ function buildRenderConfig() {
         rightTerm: eff.rightTerm,
         leftImage: eff.leftImage,
         rightImage: eff.rightImage,
+        leftColor: eff.leftColor,
+        rightColor: eff.rightColor,
+        textColor: eff.textColor,
+        highlightColor: eff.highlightColor,
+        fontSize: eff.fontSize,
+        termFontSize: eff.termFontSize,
+        termFontWeight: eff.termFontWeight,
+        subFontWeight: eff.subFontWeight,
+        actorScale: eff.actorScale,
+        fontFamily: eff.fontFamily,
+        videoBg: eff.videoBg,
+        videoBgImage: eff.videoBgImage,
+        showSubtitles: eff.showSubtitles,
+        showTerms: eff.showTerms,
+        showIllustrations: eff.showIllustrations,
+        showActor: eff.showActor,
+        offsets: eff.offsets || { termsY: 0, imagesY: 0, contentY: 0, actorY: 0 }
       };
     }),
   };
@@ -1099,6 +1280,27 @@ function initInteractivePreview() {
     });
   }
 
+  if (els.wrapBracketBtn && els.scriptInput) {
+    els.wrapBracketBtn.addEventListener("click", () => {
+      const textarea = els.scriptInput;
+      const start = textarea.selectionStart;
+      const end = textarea.selectionEnd;
+      if (start === end) {
+        showToast("Vui lòng bôi đen từ/cụm từ cần chuyển phát âm trước ✓");
+        textarea.focus();
+        return;
+      }
+      const text = textarea.value;
+      const selected = text.slice(start, end);
+      const wrapped = `[${selected}]`;
+      textarea.value = text.slice(0, start) + wrapped + text.slice(end);
+      textarea.focus();
+      textarea.setSelectionRange(start, start + wrapped.length);
+      textarea.dispatchEvent(new Event("input"));
+      textarea.dispatchEvent(new Event("change"));
+    });
+  }
+
   if (els.previewPhone) {
     let lastScrollTime = 0;
     els.previewPhone.addEventListener("wheel", (e) => {
@@ -1239,8 +1441,72 @@ function initAppLogger() {
   }
 }
 
+function initZoneDragging() {
+  const zones = [
+    { key: "termsY", selector: ".zone-terms", min: -15, max: 15 },
+    { key: "imagesY", selector: ".zone-images", min: -20, max: 20 },
+    { key: "contentY", selector: ".zone-content", min: -30, max: 30 },
+    { key: "actorY", selector: ".zone-actor", min: -25, max: 25 }
+  ];
+
+  zones.forEach(({ key, selector, min, max }) => {
+    const el = document.querySelector(selector);
+    if (!el) return;
+    el.classList.add("draggable-zone");
+
+    let dragging = false;
+    let startY = 0;
+    let startOff = 0;
+
+    el.addEventListener("pointerdown", (e) => {
+      if (e.target.tagName.toLowerCase() === "select" || e.target.contentEditable === "true") return;
+      dragging = true;
+      startY = e.clientY;
+      const activeIdx = state.activeScopeIndex === -1 ? state.sceneIndex : state.activeScopeIndex;
+      const eff = getEffectiveSceneData(activeIdx);
+      startOff = (eff.offsets && eff.offsets[key]) || 0;
+      el.classList.add("is-dragging");
+      try { el.setPointerCapture(e.pointerId); } catch (_) {}
+    });
+
+    el.addEventListener("pointermove", (e) => {
+      if (!dragging) return;
+      const deltaY = e.clientY - startY;
+      let newOff = startOff + deltaY;
+      newOff = Math.max(min, Math.min(max, newOff));
+      el.style.transform = `translateY(${newOff}px)`;
+    });
+
+    const stop = (e) => {
+      if (!dragging) return;
+      dragging = false;
+      el.classList.remove("is-dragging");
+      try { el.releasePointerCapture(e.pointerId); } catch (_) {}
+      const deltaY = e.clientY - startY;
+      let newOff = startOff + deltaY;
+      newOff = Math.max(min, Math.min(max, newOff));
+
+      const activeIdx = state.activeScopeIndex === -1 ? state.sceneIndex : state.activeScopeIndex;
+      if (!state.sceneOverrides[activeIdx]) {
+        state.sceneOverrides[activeIdx] = { isCustom: true };
+      }
+      state.sceneOverrides[activeIdx].isCustom = true;
+      if (!state.sceneOverrides[activeIdx].offsets) {
+        state.sceneOverrides[activeIdx].offsets = { termsY: 0, imagesY: 0, contentY: 0, actorY: 0 };
+      }
+      state.sceneOverrides[activeIdx].offsets[key] = Math.round(newOff);
+      render();
+      showToast("Đã lưu vị trí tùy chỉnh ✓");
+    };
+
+    el.addEventListener("pointerup", stop);
+    el.addEventListener("pointercancel", stop);
+  });
+}
+
 updateVoiceDropdown();
 initActorPreviews();
 initInteractivePreview();
+initZoneDragging();
 initAppLogger();
 render();

@@ -89,6 +89,36 @@ def adjust_wav_speed(wav_path: Path, rate_val: float, ffmpeg_path: str = "ffmpeg
             try: temp_wav.unlink()
             except Exception: pass
 
+def trim_wav_silence(wav_path: Path, ffmpeg_path: str = "ffmpeg",
+                     start_threshold: float = -40.0, end_threshold: float = -40.0,
+                     start_duration: float = 0.04, end_duration: float = 0.06):
+    """Trim leading and trailing silence from a WAV file using ffmpeg silenceremove."""
+    import subprocess
+    temp_wav = wav_path.parent / f"trim-{wav_path.name}"
+    try:
+        filter_chain = (
+            f"silenceremove=start_periods=1:start_duration={start_duration}:"
+            f"start_threshold={start_threshold}dB:"
+            f"stop_periods=-1:stop_duration={end_duration}:"
+            f"stop_threshold={end_threshold}dB"
+        )
+        cmd = [
+            ffmpeg_path, "-y",
+            "-i", str(wav_path),
+            "-af", filter_chain,
+            "-ar", "48000", "-ac", "1", "-c:a", "pcm_s16le",
+            str(temp_wav)
+        ]
+        res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        if res.returncode == 0 and temp_wav.exists() and temp_wav.stat().st_size > 0:
+            shutil.move(str(temp_wav), str(wav_path))
+    except Exception:
+        pass
+    finally:
+        if temp_wav.exists():
+            try: temp_wav.unlink()
+            except Exception: pass
+
 def normalize_wav_48k(wav_path: Path, ffmpeg_path: str = "ffmpeg"):
     import subprocess
     try:
@@ -255,18 +285,23 @@ async def main_async():
                 
                 if lang == "vi":
                     gen_local_vi(seg_text, seg_wav_path)
+                    if len(segments) > 1:
+                        trim_wav_silence(seg_wav_path, args.ffmpeg_path)
                     temp_wavs.append(seg_wav_path)
                 else:
-                    # Online Edge-TTS
                     print(f"[render]  └─ Synthesizing online '{seg_text}' using Edge-TTS ({lang})...")
                     try:
                         await generate_edge_tts(seg_text, lang, seg_wav_path, args.ffmpeg_path, ja_voice=ja_voice, en_voice=en_voice, zh_voice=zh_voice, rate_val=foreign_speech_rate)
+                        if len(segments) > 1:
+                            trim_wav_silence(seg_wav_path, args.ffmpeg_path)
                         temp_wavs.append(seg_wav_path)
                     except Exception as e:
                         print(f"[WARN] Edge-TTS failed for '{seg_text}' ({lang}): {str(e)}")
                         print(f"[render]  └─ Falling back to local offline TTS ({engine_name})...")
                         try:
                             gen_local_vi(seg_text, seg_wav_path)
+                            if len(segments) > 1:
+                                trim_wav_silence(seg_wav_path, args.ffmpeg_path)
                             temp_wavs.append(seg_wav_path)
                         except Exception as fallback_err:
                             print(f"[ERROR] Offline fallback failed: {str(fallback_err)}")

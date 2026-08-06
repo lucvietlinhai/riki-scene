@@ -68,11 +68,11 @@
       </div>
       <article class="phone" id="previewPhone" title="Lăn chuột lên/xuống để chuyển cảnh">
         <div class="card">
-          <div class="hero-title">
+          <div class="hero-title zone-terms">
             <h2 id="leftTitle" title="Nhấp đúp để sửa vế trái">Khách quan</h2>
             <h2 id="rightTitle" title="Nhấp đúp để sửa vế phải">Chủ quan</h2>
           </div>
-          <div class="images" id="previewImages">
+          <div class="images zone-images" id="previewImages">
             <div class="preview-image-wrap preview-image-wrap--left" id="leftImageWrap" title="Click để tải/thay ảnh trái">
               <img id="leftImage" alt="Ảnh so sánh trái" />
               <div class="preview-image-overlay">
@@ -86,8 +86,10 @@
               </div>
             </div>
           </div>
-          <div class="read-box">
+          <div class="read-box zone-content">
             <p id="highlightText" title="Click để nhảy tới kịch bản dòng này"></p>
+          </div>
+          <div class="zone-actor" id="zoneActor">
             <div class="actor" id="actor" title="Bấm chuột phải để chọn tư thế nhân vật">
               <b id="poseName">chỉ trái</b>
               <img id="actorCustomImg" class="actor__custom-img" alt="" />
@@ -517,6 +519,9 @@ Khi so sánh hai khái niệm, hãy nhìn vào điểm khác nhau trong cách đ
       <div class="script-tip">
         <div class="script-tip__row">
           <span>💡 <strong>Phát âm mặc định cho [...]:</strong></span>
+          <button type="button" id="wrapBracketBtn" class="wrap-bracket-btn" title="Bọc đoạn bôi đen trong [...] để phát âm riêng">🔤 Thêm phát âm [...]</button>
+        </div>
+        <div class="script-tip__row">
           <select id="bracketLangSelect" class="script-tip__select">
             <option value="none" selected>Chưa có phát âm</option>
             <option value="en">Tiếng Anh</option>
