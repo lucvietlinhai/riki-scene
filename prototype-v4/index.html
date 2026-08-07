@@ -348,56 +348,128 @@
       <div class="panel" id="voicePanel">
         <div class="panel__section">
           <h2 class="panel__title">Cấu hình giọng đọc</h2>
-          <div class="voice-grid">
-            <label class="field-label">Bộ máy TTS
-              <select id="ttsEngineSelect">
-                <option value="vieneu" selected>VieNeu-TTS · ONNX CPU</option>
-                <option value="kokoro">Kokoro-Vietnamese · ONNX CPU</option>
-              </select>
-            </label>
-            <label class="field-label" id="kokoroVoiceLabel" hidden>Giọng đọc Kokoro
-              <select id="kokoroVoiceSelect">
-                <option value="diem_trinh" selected>Điểm Trịnh — Nữ · Ấm áp</option>
-                <option value="hung_thinh">Hùng Thịnh — Nam · Chuẩn</option>
-                <option value="mai_linh">Mai Linh — Nữ · Truyền cảm</option>
-                <option value="mai_loan">Mai Loan — Nữ · Nhẹ nhàng</option>
-                <option value="manh_dung">Mạnh Dũng — Nam · Trầm ấm</option>
-                <option value="my_yen">Mỹ Yến — Nữ · Tự nhiên</option>
-                <option value="ngoc_huyen">Ngọc Huyền — Nữ · Trong trẻo</option>
-                <option value="phat_tai">Phát Tài — Nam · Năng động</option>
-                <option value="thanh_dat">Thành Đạt — Nam · Tin tức</option>
-                <option value="thuc_trinh">Thục Trịnh — Nữ · Dịu dàng</option>
-                <option value="tuan_ngoc">Tuấn Ngọc — Nam · Kể chuyện</option>
-                <option value="storyvert">Storyvert — Nữ · Đọc truyện</option>
-                <option value="duc_an">Đức An — Nam · Trẻ trung</option>
-                <option value="duc_duy">Đức Duy — Nam · Sôi nổi</option>
-              </select>
-            </label>
-            <label class="field-label" id="vieneuVoiceLabel">Giọng đọc VieNeu
-              <select id="voiceSelect">
-                <option value="Minh Đức">Minh Đức — Nam · Bắc · Tin tức</option>
-                <option value="Phạm Tuyên">Phạm Tuyên — Nam · Bắc · Tự nhiên</option>
-                <option value="Thái Sơn">Thái Sơn — Nam · Nam · Kể chuyện</option>
-                <option value="Xuân Vĩnh">Xuân Vĩnh — Nam · Nam · Tự nhiên</option>
-                <option value="Thanh Bình">Thanh Bình — Nam · Bắc · Kể chuyện</option>
-                <option value="Trúc Ly">Trúc Ly — Nữ · Bắc · Tự nhiên</option>
-                <option value="Ngọc Linh">Ngọc Linh — Nữ · Bắc · Kể chuyện</option>
-                <option value="Đoan Trang">Đoan Trang — Nữ · Bắc · Tự nhiên</option>
-                <option value="Mai Anh">Mai Anh — Nữ · Bắc · Tin tức</option>
-                <option value="Thục Đoan">Thục Đoan — Nữ · Nam · Kể chuyện</option>
-                <option value="Minh Triết">Minh Triết — Nam · Nam · Tin tức</option>
-                <option value="Thùy Dung">Thùy Dung — Nữ · Nam · Tin tức</option>
-                <option value="Quang Sơn">Quang Sơn — Nam · Trung · Tự nhiên</option>
-                <option value="Ngọc Trân">Ngọc Trân — Nữ · Trung · Tự nhiên</option>
-              </select>
-            </label>
-            <label class="field-label" id="vieneuStyleLabel">Phong cách
-              <select id="styleSelect">
-                <option value="tin_tuc">Tin tức</option>
-                <option value="tu_nhien">Tự nhiên</option>
-                <option value="doc_truyen">Đọc truyện</option>
-              </select>
-            </label>
+          
+          <div class="voice-source-switcher">
+            <span class="field-label-text">Nguồn phát giọng đọc:</span>
+            <div class="voice-source-options">
+              <label class="voice-source-btn active" id="modeLocalLabel">
+                <input type="radio" name="voiceSourceMode" value="local" checked />
+                <span>⚙️ Engine Cục bộ (Local - Miễn phí)</span>
+              </label>
+              <label class="voice-source-btn" id="modeCloudLabel">
+                <input type="radio" name="voiceSourceMode" value="cloud" />
+                <span>☁️ Cloud API Provider (Multilingual)</span>
+              </label>
+            </div>
+          </div>
+
+          <div id="localTtsSection">
+            <div class="voice-grid">
+              <label class="field-label">Bộ máy TTS
+                <select id="ttsEngineSelect">
+                  <option value="vieneu" selected>VieNeu-TTS · ONNX CPU</option>
+                  <option value="kokoro">Kokoro-Vietnamese · ONNX CPU</option>
+                </select>
+              </label>
+              <label class="field-label" id="kokoroVoiceLabel" hidden>Giọng đọc Kokoro
+                <select id="kokoroVoiceSelect">
+                  <option value="diem_trinh" selected>Điểm Trịnh — Nữ · Ấm áp</option>
+                  <option value="hung_thinh">Hùng Thịnh — Nam · Chuẩn</option>
+                  <option value="mai_linh">Mai Linh — Nữ · Truyền cảm</option>
+                  <option value="mai_loan">Mai Loan — Nữ · Nhẹ nhàng</option>
+                  <option value="manh_dung">Mạnh Dũng — Nam · Trầm ấm</option>
+                  <option value="my_yen">Mỹ Yến — Nữ · Tự nhiên</option>
+                  <option value="ngoc_huyen">Ngọc Huyền — Nữ · Trong trẻo</option>
+                  <option value="phat_tai">Phát Tài — Nam · Năng động</option>
+                  <option value="thanh_dat">Thành Đạt — Nam · Tin tức</option>
+                  <option value="thuc_trinh">Thục Trịnh — Nữ · Dịu dàng</option>
+                  <option value="tuan_ngoc">Tuấn Ngọc — Nam · Kể chuyện</option>
+                  <option value="storyvert">Storyvert — Nữ · Đọc truyện</option>
+                  <option value="duc_an">Đức An — Nam · Trẻ trung</option>
+                  <option value="duc_duy">Đức Duy — Nam · Sôi nổi</option>
+                </select>
+              </label>
+              <label class="field-label" id="vieneuVoiceLabel">Giọng đọc VieNeu
+                <select id="voiceSelect">
+                  <option value="Minh Đức">Minh Đức — Nam · Bắc · Tin tức</option>
+                  <option value="Phạm Tuyên">Phạm Tuyên — Nam · Bắc · Tự nhiên</option>
+                  <option value="Thái Sơn">Thái Sơn — Nam · Nam · Kể chuyện</option>
+                  <option value="Xuân Vĩnh">Xuân Vĩnh — Nam · Nam · Tự nhiên</option>
+                  <option value="Thanh Bình">Thanh Bình — Nam · Bắc · Kể chuyện</option>
+                  <option value="Trúc Ly">Trúc Ly — Nữ · Bắc · Tự nhiên</option>
+                  <option value="Ngọc Linh">Ngọc Linh — Nữ · Bắc · Kể chuyện</option>
+                  <option value="Đoan Trang">Đoan Trang — Nữ · Bắc · Tự nhiên</option>
+                  <option value="Mai Anh">Mai Anh — Nữ · Bắc · Tin tức</option>
+                  <option value="Thục Đoan">Thục Đoan — Nữ · Nam · Kể chuyện</option>
+                  <option value="Minh Triết">Minh Triết — Nam · Nam · Tin tức</option>
+                  <option value="Thùy Dung">Thùy Dung — Nữ · Nam · Tin tức</option>
+                  <option value="Quang Sơn">Quang Sơn — Nam · Trung · Tự nhiên</option>
+                  <option value="Ngọc Trân">Ngọc Trân — Nữ · Trung · Tự nhiên</option>
+                </select>
+              </label>
+              <label class="field-label" id="vieneuStyleLabel">Phong cách
+                <select id="styleSelect">
+                  <option value="tin_tuc">Tin tức</option>
+                  <option value="tu_nhien">Tự nhiên</option>
+                  <option value="doc_truyen">Đọc truyện</option>
+                </select>
+              </label>
+            </div>
+          </div>
+
+          <div id="cloudTtsSection" hidden>
+            <div class="voice-grid">
+              <label class="field-label">Nhà cung cấp Cloud API
+                <select id="cloudProviderSelect">
+                  <option value="openai" selected>OpenAI TTS (Multilingual)</option>
+                  <option value="elevenlabs">ElevenLabs (Multilingual v2)</option>
+                  <option value="fptai">FPT.AI Voice (Tiếng Việt)</option>
+                  <option value="azure">Azure Cognitive Speech (Multilingual)</option>
+                </select>
+              </label>
+              <label class="field-label">Giọng đọc Cloud API
+                <select id="cloudVoiceSelect">
+                  <option value="alloy" selected>Alloy — Nữ/Nam · Đa dụng</option>
+                  <option value="echo">Echo — Nam · Trầm ấm</option>
+                  <option value="fable">Fable — Nam · Kể chuyện</option>
+                  <option value="onyx">Onyx — Nam · Truyền cảm</option>
+                  <option value="nova">Nova — Nữ · Trẻ trung</option>
+                  <option value="shimmer">Shimmer — Nữ · Trong trẻo</option>
+                </select>
+              </label>
+              <label class="field-label" id="cloudModelLabel">Model AI
+                <select id="cloudModelSelect">
+                  <option value="tts-1" selected>tts-1 (Tốc độ nhanh)</option>
+                  <option value="tts-1-hd">tts-1-hd (Chất lượng cao HD)</option>
+                </select>
+              </label>
+              <div class="field-label field-label--btn-align">
+                <div class="field-label-header">
+                  <span class="field-label-text">Quản lý API Key</span>
+                  <span class="api-key-quick-status" id="apiKeyQuickStatus">Chưa cấu hình</span>
+                </div>
+                <button id="openApiKeyModalBtn" type="button" class="btn-sub-action btn-sub-action--teal">
+                  <span class="btn-sub-action__left">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.778-7.778zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/>
+                    </svg>
+                    <span>Cấu hình API Keys...</span>
+                  </span>
+                  <svg class="btn-sub-action__chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M9 18l6-6-6-6"/>
+                  </svg>
+                </button>
+              </div>
+            </div>
+            <div class="cloud-note-box">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="cloud-note-icon">
+                <circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>
+              </svg>
+              <span><strong>Lưu ý:</strong> Chế độ Cloud API sử dụng các giọng Multilingual tiên tiến. Hệ thống sẽ tự động phát âm chuẩn xác cả tiếng Việt lẫn các từ ngoại ngữ trong cùng 1 câu.</span>
+            </div>
+          </div>
+
+          <div class="voice-grid voice-grid--common">
             <label class="field-label">Hiệu ứng chữ
               <select id="highlightMode">
                 <option value="word">Đổi màu từng từ</option>
@@ -414,12 +486,13 @@
               </select>
             </label>
           </div>
+
           <div class="voice-preview-row">
             <button id="previewVoiceBtn" type="button" class="btn-voice-preview">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                 stroke-linecap="round" stroke-linejoin="round">
                 <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
-                <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07" />
+                <path d="M19.07 4.93a10 10 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07" />
               </svg>
               <span>Nghe thử giọng này</span>
             </button>
@@ -735,7 +808,142 @@ Khi so sánh hai khái niệm, hãy nhìn vào điểm khác nhau trong cách đ
     </div>
   </div>
 
-  <div class="toast" id="toast"></div>
+        <!-- Modal Cấu hình API Keys -->
+  <div class="render-settings" id="apiKeyModal" hidden>
+    <div class="render-settings__backdrop" id="apiKeyModalBackdrop"></div>
+    <div class="render-settings__box api-key-modal-box">
+      <div class="render-settings__head">
+        <div class="api-key-modal__title-wrap">
+          <span class="api-key-modal__title-icon">🔑</span>
+          <strong id="apiKeyModalTitle">Cấu hình Cloud API Key</strong>
+        </div>
+        <button class="render-panel__close" id="apiKeyModalClose" type="button" aria-label="Đóng">✕</button>
+      </div>
+      <div class="api-key-modal__body">
+        <!-- Tabs chọn Provider -->
+        <div class="api-key-tabs" id="apiKeyTabs">
+          <button type="button" class="api-key-tab active" data-tab="openai" id="tabOpenAI">
+            <span class="api-key-tab__icon">🤖</span>
+            <span>OpenAI</span>
+          </button>
+          <button type="button" class="api-key-tab" data-tab="elevenlabs" id="tabElevenLabs">
+            <span class="api-key-tab__icon">🎙️</span>
+            <span>ElevenLabs</span>
+          </button>
+          <button type="button" class="api-key-tab" data-tab="fptai" id="tabFptAI">
+            <span class="api-key-tab__icon">🇻🇳</span>
+            <span>FPT.AI</span>
+          </button>
+          <button type="button" class="api-key-tab" data-tab="azure" id="tabAzure">
+            <span class="api-key-tab__icon">☁️</span>
+            <span>Azure</span>
+          </button>
+        </div>
+
+        <div class="api-key-cards">
+          <!-- OpenAI Card -->
+          <div class="api-key-card" data-provider="openai" id="cardOpenAI">
+            <div class="api-key-card__head">
+              <div class="api-key-card__title">
+                <span class="api-key-card__icon">🤖</span>
+                <span>OpenAI TTS API Key</span>
+              </div>
+              <span class="api-key-card__badge" id="badgeOpenAI">Chưa thiết lập</span>
+            </div>
+            <div class="api-key-card__row">
+              <input type="password" id="apiKeyOpenAI" class="api-key-card__input" placeholder="sk-proj-..." autocomplete="off" />
+              <button type="button" class="btn-eye" data-target="apiKeyOpenAI" title="Hiện/Ẩn key">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+              </button>
+            </div>
+            <div class="api-key-card__foot">
+              <span class="api-key-card__hint">Lấy API key tại <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener">platform.openai.com</a></span>
+            </div>
+          </div>
+
+          <!-- ElevenLabs Card -->
+          <div class="api-key-card" data-provider="elevenlabs" id="cardElevenLabs" hidden>
+            <div class="api-key-card__head">
+              <div class="api-key-card__title">
+                <span class="api-key-card__icon">🎙️</span>
+                <span>ElevenLabs API Key</span>
+              </div>
+              <span class="api-key-card__badge" id="badgeElevenLabs">Chưa thiết lập</span>
+            </div>
+            <div class="api-key-card__row">
+              <input type="password" id="apiKeyElevenLabs" class="api-key-card__input" placeholder="sk_..." autocomplete="off" />
+              <button type="button" class="btn-eye" data-target="apiKeyElevenLabs" title="Hiện/Ẩn key">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+              </button>
+            </div>
+            <div class="api-key-card__foot">
+              <span class="api-key-card__hint">Lấy key tại Profile Settings trên <a href="https://elevenlabs.io/app/settings/api-keys" target="_blank" rel="noopener">elevenlabs.io</a></span>
+            </div>
+          </div>
+
+          <!-- FPT.AI Card -->
+          <div class="api-key-card" data-provider="fptai" id="cardFptAI" hidden>
+            <div class="api-key-card__head">
+              <div class="api-key-card__title">
+                <span class="api-key-card__icon">🇻🇳</span>
+                <span>FPT.AI Voice API Key</span>
+              </div>
+              <span class="api-key-card__badge" id="badgeFptAI">Chưa thiết lập</span>
+            </div>
+            <div class="api-key-card__row">
+              <input type="password" id="apiKeyFptAI" class="api-key-card__input" placeholder="Nhập API key FPT.AI..." autocomplete="off" />
+              <button type="button" class="btn-eye" data-target="apiKeyFptAI" title="Hiện/Ẩn key">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+              </button>
+            </div>
+            <div class="api-key-card__foot">
+              <span class="api-key-card__hint">Tạo ứng dụng & lấy token tại console <a href="https://fpt.ai/tts" target="_blank" rel="noopener">fpt.ai/tts</a></span>
+            </div>
+          </div>
+
+          <!-- Azure Speech Card -->
+          <div class="api-key-card" data-provider="azure" id="cardAzure" hidden>
+            <div class="api-key-card__head">
+              <div class="api-key-card__title">
+                <span class="api-key-card__icon">☁️</span>
+                <span>Azure Cognitive Speech API</span>
+              </div>
+              <span class="api-key-card__badge" id="badgeAzure">Chưa thiết lập</span>
+            </div>
+            <div class="api-key-card__grid">
+              <div class="api-key-card__subfield">
+                <label class="api-key-card__sublabel">Subscription Key</label>
+                <div class="api-key-card__row">
+                  <input type="password" id="apiKeyAzure" class="api-key-card__input" placeholder="32 ký tự key Azure..." autocomplete="off" />
+                  <button type="button" class="btn-eye" data-target="apiKeyAzure" title="Hiện/Ẩn key">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                  </button>
+                </div>
+              </div>
+              <div class="api-key-card__subfield">
+                <label class="api-key-card__sublabel">Server Region</label>
+                <input type="text" id="apiRegionAzure" class="api-key-card__input" placeholder="southeastasia" autocomplete="off" />
+              </div>
+            </div>
+            <div class="api-key-card__foot">
+              <span class="api-key-card__hint">Tạo dịch vụ Speech Service tại <a href="https://portal.azure.com" target="_blank" rel="noopener">portal.azure.com</a></span>
+            </div>
+          </div>
+        </div>
+
+        <div class="api-key-status" id="apiKeyStatus"></div>
+      </div>
+      <div class="render-settings__foot">
+        <button class="render-panel__btn render-panel__btn--cancel" id="apiKeyModalCancel" type="button">Đóng</button>
+        <button class="render-panel__btn render-panel__btn--confirm btn-save-apikeys" id="apiKeyModalSave" type="button">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+          Lưu API Key
+        </button>
+      </div>
+    </div>
+  </div>
+
+<div class="toast" id="toast"></div>
   <script src="./app.js"></script>
 </body>
 
