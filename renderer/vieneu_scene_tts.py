@@ -185,6 +185,62 @@ async def generate_edge_tts(text: str, lang: str, out_path: Path, ffmpeg_path: s
         except Exception:
             pass
 
+def generate_elevenlabs_tts(text: str, voice_id: str, api_key: str, out_path: Path, ffmpeg_path: str = "ffmpeg"):
+    import urllib.request
+    import urllib.error
+    import subprocess
+
+    if not api_key:
+        raise ValueError("Missing ElevenLabs API key in render manifest.")
+
+    url = f"https://api.elevenlabs.io/v1/text-to-speech/{voice_id}"
+    headers = {
+        "xi-api-key": api_key,
+        "Content-Type": "application/json",
+    }
+    payload = json.dumps({
+        "text": text,
+        "model_id": "eleven_multilingual_v2",
+        "voice_settings": {"stability": 0.5, "similarity_boost": 0.75}
+    }).encode("utf-8")
+
+    req = urllib.request.Request(url, data=payload, headers=headers, method="POST")
+    
+    with tempfile.NamedTemporaryFile(suffix=".mp3", delete=False) as f:
+        temp_mp3 = Path(f.name)
+
+    try:
+        with urllib.request.urlopen(req) as response:
+            temp_mp3.write_bytes(response.read())
+
+        # Convert MP3 to 48kHz mono 16-bit PCM WAV using FFmpeg
+        cmd = [
+            ffmpeg_path,
+            "-y",
+            "-i", str(temp_mp3),
+            "-ar", "48000",
+            "-ac", "1",
+            "-c:a", "pcm_s16le",
+            str(out_path)
+        ]
+        res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        if res.returncode != 0:
+            raise RuntimeError(f"FFmpeg conversion failed: {res.stderr.decode('utf-8', errors='ignore')}")
+    except urllib.error.HTTPError as e:
+        error_body = e.read().decode("utf-8", errors="ignore")
+        try:
+            err_json = json.loads(error_body)
+            detail = err_json.get("detail", {}).get("message", error_body)
+        except Exception:
+            detail = error_body
+        raise RuntimeError(f"ElevenLabs API Error {e.code}: {detail}")
+    finally:
+        try:
+            if temp_mp3.exists():
+                temp_mp3.unlink()
+        except Exception:
+            pass
+
 def concatenate_wavs(wav_paths, output_path):
     if not wav_paths:
         return
@@ -218,6 +274,7 @@ async def main_async():
 
     manifest = json.loads(Path(args.manifest).read_text(encoding="utf-8"))
     engine_name = manifest.get("engine", "vieneu")
+    elevenlabs_api_key = manifest.get("elevenlabsApiKey", "")
     kokoro_voice = manifest.get("kokoroVoice", "diem_trinh")
     default_lang = manifest.get("bracketLang", "none")
     ja_voice = manifest.get("jaVoice", "ja-JP-NanamiNeural")
@@ -248,7 +305,10 @@ async def main_async():
         return kokoro_engine
 
     def gen_local_vi(seg_text, seg_wav_path):
-        if engine_name == "kokoro":
+        if engine_name == "cloud":
+            print(f"[render]  └─ Synthesizing online '{seg_text}' using ElevenLabs ({args.voice})...")
+            generate_elevenlabs_tts(seg_text, args.voice, elevenlabs_api_key, seg_wav_path, args.ffmpeg_path)
+        elif engine_name == "kokoro":
             import soundfile as sf
             k_engine = get_kokoro()
             audio, _ = k_engine.synthesize(seg_text)

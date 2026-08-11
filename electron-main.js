@@ -170,6 +170,7 @@ ipcMain.on("render:start", (event, config) => {
     leftImage: config.leftImage || "",
     rightImage: config.rightImage || "",
     voice: config.voice || "Minh Đức",
+    elevenlabsApiKey: config.elevenlabsApiKey || "",
     kokoroVoice: config.kokoroVoice || "diem_trinh",
     style: config.style || "tin_tuc",
     highlight: config.highlight || "word",

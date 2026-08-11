@@ -394,7 +394,7 @@ function makeFrame(scene, sceneIndex, progress, totalScenes, duration, actorFile
   <defs>
     <clipPath id="leftClip"><rect x="75" y="${imgY}" width="440" height="380" rx="22"/></clipPath>
     <clipPath id="rightClip"><rect x="565" y="${imgY}" width="440" height="380" rx="22"/></clipPath>
-    <clipPath id="contentZoneClip"><rect x="40" y="560" width="1000" height="700"/></clipPath>
+    <clipPath id="contentZoneClip"><rect x="40" y="480" width="1000" height="780"/></clipPath>
     <clipPath id="actorZoneClip"><rect x="0" y="1270" width="1080" height="650"/></clipPath>
   </defs>
   ${bgLayer}

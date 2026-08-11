@@ -418,54 +418,40 @@
           </div>
 
           <div id="cloudTtsSection" hidden>
-            <div class="voice-grid">
-              <label class="field-label">Nhà cung cấp Cloud API
-                <select id="cloudProviderSelect">
-                  <option value="openai" selected>OpenAI TTS (Multilingual)</option>
-                  <option value="elevenlabs">ElevenLabs (Multilingual v2)</option>
-                  <option value="fptai">FPT.AI Voice (Tiếng Việt)</option>
-                  <option value="azure">Azure Cognitive Speech (Multilingual)</option>
-                </select>
-              </label>
-              <label class="field-label">Giọng đọc Cloud API
-                <select id="cloudVoiceSelect">
-                  <option value="alloy" selected>Alloy — Nữ/Nam · Đa dụng</option>
-                  <option value="echo">Echo — Nam · Trầm ấm</option>
-                  <option value="fable">Fable — Nam · Kể chuyện</option>
-                  <option value="onyx">Onyx — Nam · Truyền cảm</option>
-                  <option value="nova">Nova — Nữ · Trẻ trung</option>
-                  <option value="shimmer">Shimmer — Nữ · Trong trẻo</option>
-                </select>
-              </label>
-              <label class="field-label" id="cloudModelLabel">Model AI
-                <select id="cloudModelSelect">
-                  <option value="tts-1" selected>tts-1 (Tốc độ nhanh)</option>
-                  <option value="tts-1-hd">tts-1-hd (Chất lượng cao HD)</option>
-                </select>
-              </label>
-              <div class="field-label field-label--btn-align">
-                <div class="field-label-header">
-                  <span class="field-label-text">Quản lý API Key</span>
-                  <span class="api-key-quick-status" id="apiKeyQuickStatus">Chưa cấu hình</span>
-                </div>
-                <button id="openApiKeyModalBtn" type="button" class="btn-sub-action btn-sub-action--teal">
-                  <span class="btn-sub-action__left">
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                      <path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.778-7.778zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/>
-                    </svg>
-                    <span>Cấu hình API Keys...</span>
-                  </span>
-                  <svg class="btn-sub-action__chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M9 18l6-6-6-6"/>
-                  </svg>
+            <!-- Hidden inputs kept for JS compatibility -->
+            <select id="cloudProviderSelect" style="display: none;">
+              <option value="elevenlabs" selected>ElevenLabs</option>
+            </select>
+            <select id="cloudVoiceSelect" style="display: none;"></select>
+            <select id="cloudModelSelect" style="display: none;">
+              <option value="eleven_multilingual_v2" selected>ElevenLabs Multilingual v2</option>
+            </select>
+
+            <div class="elevenlabs-header-row">
+              <div class="elevenlabs-header-left">
+                <span class="elevenlabs-brand-icon">🎙️</span>
+                <strong>ElevenLabs Cloud Voice</strong>
+              </div>
+              <div class="api-key-quick-wrap">
+                <span class="api-key-quick-status" id="apiKeyQuickStatus">Chưa cấu hình</span>
+                <button id="openApiKeyModalBtn" type="button" class="btn-small-api">
+                  ⚙️ Cấu hình Key
                 </button>
               </div>
             </div>
+
+            <!-- Voice Grid for ElevenLabs voices -->
+            <div class="elevenlabs-voice-container">
+              <div id="cloudVoiceList" class="elevenlabs-voice-grid">
+                <!-- Dynamically generated voice cards will go here -->
+              </div>
+            </div>
+
             <div class="cloud-note-box">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="cloud-note-icon">
                 <circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>
               </svg>
-              <span><strong>Lưu ý:</strong> Chế độ Cloud API sử dụng các giọng Multilingual tiên tiến. Hệ thống sẽ tự động phát âm chuẩn xác cả tiếng Việt lẫn các từ ngoại ngữ trong cùng 1 câu.</span>
+              <span><strong>Lưu ý:</strong> ElevenLabs cung cấp các giọng đọc AI với cảm xúc và độ chân thực cực cao. Nhập API Key để tự động tải các giọng nói của bạn và Shared Library.</span>
             </div>
           </div>
 
@@ -820,13 +806,13 @@ Khi so sánh hai khái niệm, hãy nhìn vào điểm khác nhau trong cách đ
         <button class="render-panel__close" id="apiKeyModalClose" type="button" aria-label="Đóng">✕</button>
       </div>
       <div class="api-key-modal__body">
-        <!-- Tabs chọn Provider -->
-        <div class="api-key-tabs" id="apiKeyTabs">
-          <button type="button" class="api-key-tab active" data-tab="openai" id="tabOpenAI">
+        <!-- Tabs chọn Provider (hidden since only ElevenLabs is supported now) -->
+        <div class="api-key-tabs" id="apiKeyTabs" style="display: none;">
+          <button type="button" class="api-key-tab" data-tab="openai" id="tabOpenAI">
             <span class="api-key-tab__icon">🤖</span>
             <span>OpenAI</span>
           </button>
-          <button type="button" class="api-key-tab" data-tab="elevenlabs" id="tabElevenLabs">
+          <button type="button" class="api-key-tab active" data-tab="elevenlabs" id="tabElevenLabs">
             <span class="api-key-tab__icon">🎙️</span>
             <span>ElevenLabs</span>
           </button>
@@ -841,8 +827,8 @@ Khi so sánh hai khái niệm, hãy nhìn vào điểm khác nhau trong cách đ
         </div>
 
         <div class="api-key-cards">
-          <!-- OpenAI Card -->
-          <div class="api-key-card" data-provider="openai" id="cardOpenAI">
+          <!-- OpenAI Card (hidden) -->
+          <div class="api-key-card" data-provider="openai" id="cardOpenAI" hidden>
             <div class="api-key-card__head">
               <div class="api-key-card__title">
                 <span class="api-key-card__icon">🤖</span>
@@ -861,8 +847,8 @@ Khi so sánh hai khái niệm, hãy nhìn vào điểm khác nhau trong cách đ
             </div>
           </div>
 
-          <!-- ElevenLabs Card -->
-          <div class="api-key-card" data-provider="elevenlabs" id="cardElevenLabs" hidden>
+          <!-- ElevenLabs Card (visible by default now) -->
+          <div class="api-key-card" data-provider="elevenlabs" id="cardElevenLabs">
             <div class="api-key-card__head">
               <div class="api-key-card__title">
                 <span class="api-key-card__icon">🎙️</span>

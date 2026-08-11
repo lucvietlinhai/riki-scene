@@ -838,15 +838,22 @@ els.actorResetBtn.addEventListener("click", () => {
 
 function buildRenderConfig() {
   const list = scenes();
+  const voiceModeRadio = document.querySelector('input[name="voiceSourceMode"]:checked');
+  const isCloud = voiceModeRadio && voiceModeRadio.value === "cloud";
+  const keys = loadApiKeys();
+
   return {
-    engine: els.ttsEngineSelect ? els.ttsEngineSelect.value : "vieneu",
+    engine: isCloud ? "cloud" : (els.ttsEngineSelect ? els.ttsEngineSelect.value : "vieneu"),
     leftTerm: state.globalTerms.left,
     rightTerm: state.globalTerms.right,
     leftColor: els.leftColor.value,
     rightColor: els.rightColor.value,
     leftImage: state.images.left || "",
     rightImage: state.images.right || "",
-    voice: els.voiceSelect.value,
+    voice: isCloud 
+      ? (els.cloudVoiceSelect ? els.cloudVoiceSelect.value : "21m00Tcm4TlvDq8ikWAM")
+      : (els.voiceSelect ? els.voiceSelect.value : "Minh Đức"),
+    elevenlabsApiKey: keys.elevenlabs || "",
     kokoroVoice: els.kokoroVoiceSelect ? els.kokoroVoiceSelect.value : "diem_trinh",
     style: els.styleSelect.value,
     highlight: els.highlightMode.value,
@@ -1410,49 +1417,20 @@ function initGitUpdater() {
 
 
 // ===================================================================
-// CLOUD TTS — Voice lists per provider
+// CLOUD TTS — ELEVENLABS
 // ===================================================================
-const CLOUD_VOICE_LISTS = {
-  openai: [
-    { value: "alloy",   label: "Alloy — Nữ/Nam · Đa dụng" },
-    { value: "echo",    label: "Echo — Nam · Trầm ấm" },
-    { value: "fable",   label: "Fable — Nam · Kể chuyện" },
-    { value: "onyx",    label: "Onyx — Nam · Truyền cảm" },
-    { value: "nova",    label: "Nova — Nữ · Trẻ trung" },
-    { value: "shimmer", label: "Shimmer — Nữ · Trong trẻo" },
-  ],
-  elevenlabs: [
-    { value: "21m00Tcm4TlvDq8ikWAM", label: "Rachel — Nữ · Tự nhiên" },
-    { value: "29vD33N1CtxCmqRPOPOx", label: "Drew — Nam · Tự nhiên" },
-    { value: "2EiwWnXFnvU5JabPnv8n", label: "Clyde — Nam · Trầm" },
-    { value: "5Q0t7uMcjGfiDlcTfDwU", label: "Paul — Nam · Tin tức" },
-    { value: "AZnzlk1XvdvUeBnXmlld", label: "Domi — Nữ · Tự tin" },
-    { value: "CYw3kZ02Hs0563khs1Fj", label: "Dave — Nam · Thường ngày" },
-    { value: "D38z5RcWu1voky8WS1ja", label: "Fin — Nam · Thân thiện" },
-    { value: "EXAVITQu4vr4xnSDxMaL", label: "Sarah — Nữ · Nhẹ nhàng" },
-    { value: "ErXwobaYiN019PkySvjV", label: "Antoni — Nam · Điềm tĩnh" },
-    { value: "GBv7mTt0atIp3Br8iCZE", label: "Thomas — Nam · Bình thản" },
-  ],
-  fptai: [
-    { value: "banmai",  label: "Ban Mai — Nữ · Bắc · Tự nhiên" },
-    { value: "linhsan", label: "Linh San — Nữ · Nam · Tự nhiên" },
-    { value: "lannhi",  label: "Lan Nhi — Nữ · Nam · Nhẹ nhàng" },
-    { value: "myan",    label: "Mỹ An — Nữ · Nam · Truyền cảm" },
-    { value: "giahuy",  label: "Gia Huy — Nam · Nam · Tin tức" },
-    { value: "linhthao", label: "Linh Thảo — Nữ · Bắc · Chuẩn" },
-    { value: "manh",    label: "Mạnh — Nam · Bắc · Chuẩn" },
-  ],
-  azure: [
-    { value: "vi-VN-HoaiMyNeural",    label: "Hoài My — Nữ · Bắc · Tự nhiên" },
-    { value: "vi-VN-NamMinhNeural",   label: "Nam Minh — Nam · Bắc · Tự nhiên" },
-    { value: "en-US-AriaNeural",      label: "Aria — Nữ Mỹ · Tự nhiên" },
-    { value: "en-US-GuyNeural",       label: "Guy — Nam Mỹ · Tự nhiên" },
-    { value: "en-US-JennyNeural",     label: "Jenny — Nữ Mỹ · Trò chuyện" },
-    { value: "en-GB-RyanNeural",      label: "Ryan — Nam Anh · Điềm tĩnh" },
-  ],
-};
-
-const CLOUD_MODEL_SUPPORT = ["openai"];
+const ELEVENLABS_STATIC_VOICES = [
+  { value: "21m00Tcm4TlvDq8ikWAM", name: "Rachel", gender: "Nữ", accent: "Tự nhiên", type: "free", previewUrl: "https://api.elevenlabs.io/v1/voices/21m00Tcm4TlvDq8ikWAM/premade" },
+  { value: "29vD33N1CtxCmqRPOPOx", name: "Drew", gender: "Nam", accent: "Tự nhiên", type: "free", previewUrl: "https://api.elevenlabs.io/v1/voices/29vD33N1CtxCmqRPOPOx/premade" },
+  { value: "2EiwWnXFnvU5JabPnv8n", name: "Clyde", gender: "Nam", accent: "Trầm", type: "free", previewUrl: "https://api.elevenlabs.io/v1/voices/2EiwWnXFnvU5JabPnv8n/premade" },
+  { value: "5Q0t7uMcjGfiDlcTfDwU", name: "Paul", gender: "Nam", accent: "Tin tức", type: "free", previewUrl: "https://api.elevenlabs.io/v1/voices/5Q0t7uMcjGfiDlcTfDwU/premade" },
+  { value: "AZnzlk1XvdvUeBnXmlld", name: "Domi", gender: "Nữ", accent: "Tự tin", type: "free", previewUrl: "https://api.elevenlabs.io/v1/voices/AZnzlk1XvdvUeBnXmlld/premade" },
+  { value: "CYw3kZ02Hs0563khs1Fj", name: "Dave", gender: "Nam", accent: "Thường ngày", type: "free", previewUrl: "https://api.elevenlabs.io/v1/voices/CYw3kZ02Hs0563khs1Fj/premade" },
+  { value: "D38z5RcWu1voky8WS1ja", name: "Fin", gender: "Nam", accent: "Thân thiện", type: "free", previewUrl: "https://api.elevenlabs.io/v1/voices/D38z5RcWu1voky8WS1ja/premade" },
+  { value: "EXAVITQu4vr4xnSDxMaL", name: "Sarah", gender: "Nữ", accent: "Nhẹ nhàng", type: "free", previewUrl: "https://api.elevenlabs.io/v1/voices/EXAVITQu4vr4xnSDxMaL/premade" },
+  { value: "ErXwobaYiN019PkySvjV", name: "Antoni", gender: "Nam", accent: "Điềm tĩnh", type: "free", previewUrl: "https://api.elevenlabs.io/v1/voices/ErXwobaYiN019PkySvjV/premade" },
+  { value: "GBv7mTt0atIp3Br8iCZE", name: "Thomas", gender: "Nam", accent: "Bình thản", type: "free", previewUrl: "https://api.elevenlabs.io/v1/voices/GBv7mTt0atIp3Br8iCZE/premade" },
+];
 
 // ===================================================================
 // VOICE SOURCE SWITCHER — Toggle Local / Cloud modes
@@ -1496,13 +1474,16 @@ async function fetchElevenLabsVoices(apiKey) {
         dataUser.voices.forEach(v => {
           voiceIdSet.add(v.voice_id);
           const isPremade = v.category === "premade";
-          const tag = isPremade ? " [Mặc định - Free OK]" : " [Giọng của bạn]";
-          const gender = v.labels?.gender ? ` · ${v.labels.gender}` : "";
-          const accent = v.labels?.accent ? ` · ${v.labels.accent}` : "";
+          const gender = v.labels?.gender ? v.labels.gender : "";
+          const accent = v.labels?.accent ? v.labels.accent : "";
           allVoiceOptions.push({
             value: v.voice_id,
-            label: `${isPremade ? "🎙️" : "⭐"} ${v.name}${tag}${gender}${accent}`,
-            priority: isPremade ? 1 : 1 // Giọng mặc định & cá nhân dùng được Free xếp lên đầu
+            name: v.name,
+            gender: gender,
+            accent: accent,
+            type: isPremade ? "free" : "user",
+            previewUrl: v.preview_url || "",
+            priority: 1
           });
         });
       }
@@ -1519,13 +1500,16 @@ async function fetchElevenLabsVoices(apiKey) {
             const vId = v.voice_id || v.public_owner_id;
             if (vId && !voiceIdSet.has(vId)) {
               voiceIdSet.add(vId);
-              const gender = v.gender ? ` · ${v.gender}` : (v.labels?.gender ? ` · ${v.labels.gender}` : "");
-              const accent = v.accent ? ` · ${v.accent}` : (v.labels?.accent ? ` · ${v.labels.accent}` : "");
-              const notice = v.descriptive ? ` (${v.descriptive})` : "";
+              const gender = v.gender || v.labels?.gender || "";
+              const accent = v.accent || v.labels?.accent || "";
               allVoiceOptions.push({
                 value: vId,
-                label: `🇻🇳 ${v.name} [Shared - Cần gói Paid]${notice}${gender}${accent}`,
-                priority: 2 // Xếp bên dưới giọng Free OK
+                name: v.name,
+                gender: gender,
+                accent: accent,
+                type: "paid",
+                previewUrl: v.preview_url || "",
+                priority: 2
               });
             }
           });
@@ -1538,7 +1522,7 @@ async function fetchElevenLabsVoices(apiKey) {
     // Sắp xếp danh sách: Giọng Free OK & Giọng cá nhân (1) -> Giọng Shared Paid (2)
     allVoiceOptions.sort((a, b) => {
       if (a.priority !== b.priority) return a.priority - b.priority;
-      return a.label.localeCompare(b.label);
+      return a.name.localeCompare(b.name);
     });
 
     return allVoiceOptions.length > 0 ? allVoiceOptions : null;
@@ -1549,69 +1533,174 @@ async function fetchElevenLabsVoices(apiKey) {
 }
 
 // ===================================================================
-// CLOUD PROVIDER SWITCHER — Update voice list when provider changes
+// ELEVENLABS CARD SELECTOR — Render voice cards and handle clicks
 // ===================================================================
 let refreshCurrentCloudVoices = null;
+let cardPreviewAudio = null;
+let cardPlayingBtn = null;
 
 function initCloudProviderSwitcher() {
-  const providerSel = els.cloudProviderSelect;
-  const voiceSel    = els.cloudVoiceSelect;
-  const modelLabel  = els.cloudModelLabel;
+  const voiceSel = els.cloudVoiceSelect;
+  const listContainer = document.getElementById("cloudVoiceList");
+  if (!listContainer) return;
 
-  if (!providerSel || !voiceSel) return;
-
-  async function updateCloudVoices(provider) {
-    const voices = CLOUD_VOICE_LISTS[provider] || CLOUD_VOICE_LISTS.openai;
-    voiceSel.innerHTML = "";
-    voices.forEach(v => {
-      const opt = document.createElement("option");
-      opt.value = v.value;
-      opt.textContent = v.label;
-      voiceSel.appendChild(opt);
-    });
-    if (modelLabel) {
-      modelLabel.hidden = !CLOUD_MODEL_SUPPORT.includes(provider);
+  function stopCardPreview() {
+    if (cardPreviewAudio) {
+      cardPreviewAudio.pause();
+      cardPreviewAudio = null;
     }
-    localStorage.setItem("riki:settings:cloud-provider", provider);
+    if (cardPlayingBtn) {
+      cardPlayingBtn.innerHTML = `<svg viewBox="0 0 24 24"><polygon points="6 4 20 12 6 20 6 4"/></svg>`;
+      cardPlayingBtn.title = "Nghe thử";
+      cardPlayingBtn = null;
+    }
+  }
 
-    // Tự động đồng bộ toàn bộ giọng đọc từ ElevenLabs nếu đã nhập API key
+  async function renderVoiceCards() {
+    stopCardPreview();
+    listContainer.innerHTML = "";
+    
+    // Default starting list
+    let voices = [...ELEVENLABS_STATIC_VOICES];
+
+    // Check if ElevenLabs key exists
     const keys = loadApiKeys();
-    if (provider === "elevenlabs" && keys.elevenlabs) {
+    if (keys.elevenlabs) {
       const liveVoices = await fetchElevenLabsVoices(keys.elevenlabs);
       if (liveVoices && liveVoices.length > 0) {
-        voiceSel.innerHTML = "";
-        liveVoices.forEach(v => {
-          const opt = document.createElement("option");
-          opt.value = v.value;
-          opt.textContent = v.label;
-          voiceSel.appendChild(opt);
-        });
-        const savedVoice = localStorage.getItem("riki:settings:cloud-voice");
-        if (savedVoice && voiceSel.querySelector(`option[value="${savedVoice}"]`)) {
-          voiceSel.value = savedVoice;
-        }
+        voices = liveVoices;
       }
     }
+
+    // Synchronize to the hidden cloudVoiceSelect for compatibility
+    if (voiceSel) {
+      voiceSel.innerHTML = "";
+      voices.forEach(v => {
+        const opt = document.createElement("option");
+        opt.value = v.value;
+        opt.textContent = v.name || v.label;
+        voiceSel.appendChild(opt);
+      });
+    }
+
+    const savedVoice = localStorage.getItem("riki:settings:cloud-voice") || (voices[0] ? voices[0].value : "");
+    if (voiceSel) {
+      voiceSel.value = savedVoice;
+    }
+
+    voices.forEach(v => {
+      const card = document.createElement("div");
+      const isSelected = v.value === savedVoice;
+      card.className = `voice-card ${isSelected ? 'selected' : ''}`;
+      card.dataset.voiceId = v.value;
+
+      const typeLabel = v.type === 'free' ? 'Free OK' : (v.type === 'user' ? 'Cá nhân' : 'Paid Shared');
+      const typeClass = v.type || 'free';
+
+      card.innerHTML = `
+        <div class="voice-card__top">
+          <button type="button" class="voice-card__play-btn" title="Nghe thử">
+            <svg viewBox="0 0 24 24"><polygon points="6 4 20 12 6 20 6 4"/></svg>
+          </button>
+          <div class="voice-card__name" title="${v.name}">${v.name}</div>
+        </div>
+        <div class="voice-card__tags">
+          ${v.gender ? `<span class="voice-card__tag voice-card__tag--gender">${v.gender}</span>` : ''}
+          ${v.accent ? `<span class="voice-card__tag voice-card__tag--accent">${v.accent}</span>` : ''}
+          <span class="voice-card__tag voice-card__tag--${typeClass}">${typeLabel}</span>
+        </div>
+        <div class="voice-card__check">✓</div>
+      `;
+
+      // Select handler
+      card.addEventListener("click", (e) => {
+        // Skip selection if clicked play button
+        if (e.target.closest(".voice-card__play-btn")) return;
+        
+        listContainer.querySelectorAll(".voice-card").forEach(c => c.classList.remove("selected"));
+        card.classList.add("selected");
+        if (voiceSel) {
+          voiceSel.value = v.value;
+          voiceSel.dispatchEvent(new Event("change"));
+        }
+        localStorage.setItem("riki:settings:cloud-voice", v.value);
+      });
+
+      // Play button handler
+      const playBtn = card.querySelector(".voice-card__play-btn");
+      playBtn.addEventListener("click", async (e) => {
+        e.stopPropagation();
+        if (cardPlayingBtn === playBtn) {
+          stopCardPreview();
+          return;
+        }
+
+        stopCardPreview();
+
+        const previewUrl = v.previewUrl;
+        if (!previewUrl) {
+          const keys = loadApiKeys();
+          if (!keys.elevenlabs) {
+            showToast("⚠️ Vui lòng cấu hình API Key để nghe thử giọng này.");
+            return;
+          }
+          playBtn.innerHTML = `
+            <svg class="preview-spinner" viewBox="0 0 24 24" style="animation: spin 1s linear infinite; width: 12px; height: 12px; fill: none; stroke: currentColor;">
+              <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none" stroke-dasharray="31.4" stroke-linecap="round"/>
+            </svg>
+          `;
+          try {
+            const PREVIEW_TEXT = "Hello! This is a voice preview from ElevenLabs.";
+            const audioBlob = await fetchCloudTTSPreview("elevenlabs", { voice: v.value, model: "eleven_multilingual_v2", text: PREVIEW_TEXT, apiKeys: keys });
+            if (audioBlob) {
+              const url = URL.createObjectURL(audioBlob);
+              cardPreviewAudio = new Audio(url);
+              cardPlayingBtn = playBtn;
+              playBtn.innerHTML = `<svg viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12"/></svg>`;
+              playBtn.title = "Dừng phát";
+              cardPreviewAudio.play();
+              cardPreviewAudio.onended = () => {
+                URL.revokeObjectURL(url);
+                stopCardPreview();
+              };
+              cardPreviewAudio.onerror = () => {
+                URL.revokeObjectURL(url);
+                stopCardPreview();
+                showToast("❌ Lỗi phát audio preview");
+              };
+            }
+          } catch (err) {
+            stopCardPreview();
+            showToast("❌ Lỗi: " + err.message);
+          }
+        } else {
+          cardPlayingBtn = playBtn;
+          playBtn.innerHTML = `<svg viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12"/></svg>`;
+          playBtn.title = "Dừng phát";
+          cardPreviewAudio = new Audio(previewUrl);
+          cardPreviewAudio.play();
+          cardPreviewAudio.onended = () => {
+            stopCardPreview();
+          };
+          cardPreviewAudio.onerror = () => {
+            stopCardPreview();
+            showToast("❌ Lỗi phát audio preview");
+          };
+        }
+      });
+
+      listContainer.appendChild(card);
+    });
   }
 
-  refreshCurrentCloudVoices = () => updateCloudVoices(providerSel.value);
-
-  const savedProvider = localStorage.getItem("riki:settings:cloud-provider") || "openai";
-  providerSel.value = savedProvider;
-  updateCloudVoices(savedProvider);
-
-  const savedVoice = localStorage.getItem("riki:settings:cloud-voice");
-  if (savedVoice && voiceSel.querySelector(`option[value="${savedVoice}"]`)) {
-    voiceSel.value = savedVoice;
+  if (voiceSel) {
+    voiceSel.addEventListener("change", () => {
+      localStorage.setItem("riki:settings:cloud-voice", voiceSel.value);
+    });
   }
 
-  providerSel.addEventListener("change", () => {
-    updateCloudVoices(providerSel.value);
-  });
-
-  voiceSel.addEventListener("change", () => {
-    localStorage.setItem("riki:settings:cloud-voice", voiceSel.value);
-  });
+  refreshCurrentCloudVoices = renderVoiceCards;
+  renderVoiceCards();
 }
 
 // ===================================================================
@@ -1621,17 +1710,11 @@ const API_KEY_STORAGE = {
   openai:       "riki:apikey:openai",
   elevenlabs:   "riki:apikey:elevenlabs",
   fptai:        "riki:apikey:fptai",
-  azure:        "riki:apikey:azure",
-  azureRegion:  "riki:apikey:azure-region",
 };
 
 function loadApiKeys() {
   return {
-    openai:      localStorage.getItem(API_KEY_STORAGE.openai)      || "",
     elevenlabs:  localStorage.getItem(API_KEY_STORAGE.elevenlabs)  || "",
-    fptai:       localStorage.getItem(API_KEY_STORAGE.fptai)       || "",
-    azure:       localStorage.getItem(API_KEY_STORAGE.azure)       || "",
-    azureRegion: localStorage.getItem(API_KEY_STORAGE.azureRegion) || "southeastasia",
   };
 }
 
@@ -1659,22 +1742,6 @@ function initApiKeyModal() {
 
   if (!modal) return;
 
-  const PROVIDER_NAMES = {
-    openai:     "OpenAI TTS",
-    elevenlabs: "ElevenLabs",
-    fptai:      "FPT.AI Voice",
-    azure:      "Azure Speech",
-  };
-
-  const CARD_MAP = {
-    openai:     { card: "cardOpenAI",     badge: "badgeOpenAI",     input: "apiKeyOpenAI" },
-    elevenlabs: { card: "cardElevenLabs", badge: "badgeElevenLabs", input: "apiKeyElevenLabs" },
-    fptai:      { card: "cardFptAI",      badge: "badgeFptAI",      input: "apiKeyFptAI" },
-    azure:      { card: "cardAzure",      badge: "badgeAzure",      input: "apiKeyAzure" },
-  };
-
-  let activeTabProvider = "openai";
-
   // Eye toggle buttons for password inputs
   modal.querySelectorAll(".btn-eye").forEach(btn => {
     btn.addEventListener("click", () => {
@@ -1691,14 +1758,8 @@ function initApiKeyModal() {
     const statusEl = els.apiKeyQuickStatus;
     if (!statusEl) return;
     const keys = loadApiKeys();
-    const activeList = [];
-    if (keys.openai)     activeList.push("OpenAI");
-    if (keys.elevenlabs) activeList.push("ElevenLabs");
-    if (keys.fptai)      activeList.push("FPT.AI");
-    if (keys.azure)      activeList.push("Azure");
-
-    if (activeList.length > 0) {
-      statusEl.textContent = `Đã cài ${activeList.length}/4 key (${activeList.join(", ")})`;
+    if (keys.elevenlabs) {
+      statusEl.textContent = "Đã cấu hình ElevenLabs ✓";
       statusEl.classList.add("is-ready");
     } else {
       statusEl.textContent = "Chưa cấu hình";
@@ -1718,79 +1779,24 @@ function initApiKeyModal() {
   }
 
   function updateAllCardStates() {
-    updateCardState("cardOpenAI",     "badgeOpenAI",     els.apiKeyOpenAI     ? els.apiKeyOpenAI.value     : "");
     updateCardState("cardElevenLabs", "badgeElevenLabs", els.apiKeyElevenLabs ? els.apiKeyElevenLabs.value : "");
-    updateCardState("cardFptAI",      "badgeFptAI",      els.apiKeyFptAI      ? els.apiKeyFptAI.value      : "");
-    updateCardState("cardAzure",      "badgeAzure",      els.apiKeyAzure      ? els.apiKeyAzure.value      : "");
     updateApiKeyQuickStatus();
   }
-
-  function switchProviderTab(provider) {
-    activeTabProvider = provider;
-
-    // Update Tab buttons UI
-    modal.querySelectorAll(".api-key-tab").forEach(tab => {
-      tab.classList.toggle("active", tab.dataset.tab === provider);
-    });
-
-    // Show only focused provider card
-    Object.entries(CARD_MAP).forEach(([p, item]) => {
-      const cardEl = document.getElementById(item.card);
-      if (cardEl) {
-        cardEl.hidden = (p !== provider);
-      }
-    });
-
-    // Update Title
-    if (titleEl) {
-      const pName = PROVIDER_NAMES[provider] || "Cloud API";
-      titleEl.textContent = `Cấu hình API Key — ${pName}`;
-    }
-
-    // Auto focus input
-    const targetItem = CARD_MAP[provider];
-    if (targetItem && els[targetItem.input]) {
-      setTimeout(() => els[targetItem.input].focus(), 100);
-    }
-  }
-
-  // Bind tab click events
-  modal.querySelectorAll(".api-key-tab").forEach(tab => {
-    tab.addEventListener("click", () => {
-      switchProviderTab(tab.dataset.tab);
-    });
-  });
-
-  // Live input change handlers
-  [
-    { input: els.apiKeyOpenAI,     card: "cardOpenAI",     badge: "badgeOpenAI" },
-    { input: els.apiKeyElevenLabs, card: "cardElevenLabs", badge: "badgeElevenLabs" },
-    { input: els.apiKeyFptAI,      card: "cardFptAI",      badge: "badgeFptAI" },
-    { input: els.apiKeyAzure,      card: "cardAzure",      badge: "badgeAzure" },
-  ].forEach(item => {
-    if (item.input) {
-      item.input.addEventListener("input", () => {
-        updateCardState(item.card, item.badge, item.input.value);
-      });
-    }
-  });
 
   function openModal() {
     if (!modal) return;
     const keys = loadApiKeys();
-    if (els.apiKeyOpenAI)     els.apiKeyOpenAI.value    = keys.openai;
     if (els.apiKeyElevenLabs) els.apiKeyElevenLabs.value = keys.elevenlabs;
-    if (els.apiKeyFptAI)      els.apiKeyFptAI.value     = keys.fptai;
-    if (els.apiKeyAzure)      els.apiKeyAzure.value     = keys.azure;
-    if (els.apiRegionAzure)   els.apiRegionAzure.value  = keys.azureRegion;
     if (statusEl) { statusEl.textContent = ""; statusEl.className = "api-key-status"; }
-    
-    // Auto select tab based on active cloud provider dropdown selection
-    const activeProvider = els.cloudProviderSelect ? els.cloudProviderSelect.value : "openai";
     
     modal.hidden = false;
     updateAllCardStates();
-    switchProviderTab(activeProvider);
+    if (titleEl) {
+      titleEl.textContent = "Cấu hình API Key — ElevenLabs";
+    }
+    if (els.apiKeyElevenLabs) {
+      setTimeout(() => els.apiKeyElevenLabs.focus(), 100);
+    }
   }
 
   function closeModal() {
@@ -1799,11 +1805,7 @@ function initApiKeyModal() {
 
   function saveKeys() {
     const keys = {
-      openai:      els.apiKeyOpenAI     ? els.apiKeyOpenAI.value.trim()     : "",
       elevenlabs:  els.apiKeyElevenLabs ? els.apiKeyElevenLabs.value.trim() : "",
-      fptai:       els.apiKeyFptAI      ? els.apiKeyFptAI.value.trim()      : "",
-      azure:       els.apiKeyAzure      ? els.apiKeyAzure.value.trim()      : "",
-      azureRegion: els.apiRegionAzure   ? els.apiRegionAzure.value.trim()   : "southeastasia",
     };
     saveApiKeys(keys);
     updateAllCardStates();
@@ -1811,12 +1813,11 @@ function initApiKeyModal() {
       refreshCurrentCloudVoices();
     }
     
-    const pName = PROVIDER_NAMES[activeTabProvider] || "API Key";
     if (statusEl) {
-      statusEl.textContent = `✅ Đã lưu cấu hình ${pName} thành công!`;
+      statusEl.textContent = `✅ Đã lưu cấu hình ElevenLabs thành công!`;
       statusEl.className = "api-key-status";
     }
-    addAppLog("info", "ApiKey", `API Keys (${pName}) đã được cập nhật và lưu local.`);
+    addAppLog("info", "ApiKey", `API Key ElevenLabs đã được cập nhật và lưu local.`);
     setTimeout(() => closeModal(), 1000);
   }
 
@@ -1835,22 +1836,6 @@ function initApiKeyModal() {
 // CLOUD TTS PREVIEW — Fetch audio from cloud provider API
 // ===================================================================
 async function fetchCloudTTSPreview(provider, { voice, model, text, apiKeys }) {
-  if (provider === "openai") {
-    const res = await fetch("https://api.openai.com/v1/audio/speech", {
-      method: "POST",
-      headers: {
-        "Authorization": "Bearer " + apiKeys.openai,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ model: model || "tts-1", voice, input: text }),
-    });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(err.error?.message || "OpenAI API lỗi " + res.status);
-    }
-    return res.blob();
-  }
-
   if (provider === "elevenlabs") {
     const voiceId = voice || "21m00Tcm4TlvDq8ikWAM";
     const res = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
@@ -1876,40 +1861,7 @@ async function fetchCloudTTSPreview(provider, { voice, model, text, apiKeys }) {
     return res.blob();
   }
 
-  if (provider === "fptai") {
-    const params = new URLSearchParams({ text, voice, speed: "0", tts_return_option: "1" });
-    const res = await fetch("https://api.fpt.ai/hmi/tts/v5?" + params.toString(), {
-      method: "POST",
-      headers: { "api-key": apiKeys.fptai, "Content-Type": "application/json" },
-      body: JSON.stringify({ text, voice }),
-    });
-    if (!res.ok) throw new Error("FPT.AI API lỗi " + res.status);
-    const json = await res.json();
-    if (json.async) {
-      await new Promise(r => setTimeout(r, 2000));
-      const audioRes = await fetch(json.async);
-      return audioRes.blob();
-    }
-    return res.blob();
-  }
-
-  if (provider === "azure") {
-    const region = apiKeys.azureRegion || "southeastasia";
-    const ssml = `<speak version='1.0' xml:lang='vi-VN'><voice name='${voice}'>${text}</voice></speak>`;
-    const res = await fetch(`https://${region}.tts.speech.microsoft.com/cognitiveservices/v1`, {
-      method: "POST",
-      headers: {
-        "Ocp-Apim-Subscription-Key": apiKeys.azure,
-        "Content-Type": "application/ssml+xml",
-        "X-Microsoft-OutputFormat": "audio-16khz-128kbitrate-mono-mp3",
-      },
-      body: ssml,
-    });
-    if (!res.ok) throw new Error("Azure Speech API lỗi " + res.status);
-    return res.blob();
-  }
-
-  throw new Error("Provider không hỗ trợ: " + provider);
+  throw new Error("Provider không hỗ trợ hoặc đã bị loại bỏ: " + provider);
 }
 
 // ===================================================================
@@ -1953,28 +1905,20 @@ function initVoicePreview() {
     }
   }
 
-  function stopPreview() {
-    if (previewAudio) {
-      previewAudio.pause();
-      previewAudio = null;
-    }
-    setPreviewState(false, false);
-  }
-
   btn.addEventListener("click", async () => {
     if (isPlaying) {
-      stopPreview();
+      if (previewAudio) {
+        previewAudio.pause();
+        previewAudio = null;
+      }
+      setPreviewState(false, false);
       return;
     }
 
-    const modeRadio = document.querySelector('input[name="voiceSourceMode"]:checked');
-    const mode = modeRadio ? modeRadio.value : "local";
+    const voiceModeRadio = document.querySelector('input[name="voiceSourceMode"]:checked');
+    const mode = voiceModeRadio ? voiceModeRadio.value : "local";
 
     if (mode === "local") {
-      if (!window.electronAPI || typeof window.electronAPI.previewVoice !== "function") {
-        showToast("⚠️ Preview giọng local chỉ hoạt động trong Electron app");
-        return;
-      }
       setPreviewState(true, false);
       const engine = els.ttsEngineSelect ? els.ttsEngineSelect.value : "vieneu";
       const kokoroVoice = els.kokoroVoiceSelect ? els.kokoroVoiceSelect.value : "diem_trinh";
@@ -2024,19 +1968,18 @@ function initVoicePreview() {
       }
 
     } else {
-      const provider = els.cloudProviderSelect ? els.cloudProviderSelect.value : "openai";
+      const provider = "elevenlabs";
       const apiKeys = loadApiKeys();
 
-      const keyMap = { openai: apiKeys.openai, elevenlabs: apiKeys.elevenlabs, fptai: apiKeys.fptai, azure: apiKeys.azure };
-      if (!keyMap[provider]) {
-        showToast("⚠️ Bạn chưa nhập API Key cho " + provider + ". Nhấn '🔑 Cấu hình API Keys...' để thêm.");
+      if (!apiKeys.elevenlabs) {
+        showToast("⚠️ Bạn chưa nhập API Key cho ElevenLabs. Nhấn '⚙️ Cấu hình Key' để thêm.");
         return;
       }
 
       setPreviewState(true, false);
       try {
-        const voice = els.cloudVoiceSelect ? els.cloudVoiceSelect.value : "alloy";
-        const model = els.cloudModelSelect ? els.cloudModelSelect.value : "tts-1";
+        const voice = els.cloudVoiceSelect ? els.cloudVoiceSelect.value : "21m00Tcm4TlvDq8ikWAM";
+        const model = "eleven_multilingual_v2";
         const audioBlob = await fetchCloudTTSPreview(provider, { voice, model, text: PREVIEW_TEXT, apiKeys });
         if (audioBlob) {
           const url = URL.createObjectURL(audioBlob);
