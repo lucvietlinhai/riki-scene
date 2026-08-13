@@ -134,6 +134,90 @@ async def generate_edge_tts(text: str, lang: str, out_path: Path, ffmpeg_path: s
         except Exception:
             pass
 
+def generate_drk_tts(text: str, voice_id: str, model_id: str, api_key: str, out_path: Path, ffmpeg_path: str = "ffmpeg"):
+    import urllib.request
+    import urllib.error
+    import time
+    import subprocess
+
+    key = api_key or "drk_4d09a9ddb66ead101af0d93346355bb502c9616f3a2827e2"
+    url = "https://voice.dinhrinmkt.top/api_member.php"
+    headers = {
+        "Authorization": f"Bearer {key}",
+        "Content-Type": "application/json",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+    }
+
+    submit_payload = json.dumps({
+        "action": "tts_submit",
+        "text": text,
+        "voiceId": voice_id or "voice51:0",
+        "modelId": model_id or "capcut_free",
+        "config": {"speed": 1, "volume": 1, "pitch": 1, "export_srt": False}
+    }).encode("utf-8")
+
+    req = urllib.request.Request(url, data=submit_payload, headers=headers, method="POST")
+    try:
+        with urllib.request.urlopen(req) as resp:
+            res_data = json.loads(resp.read().decode("utf-8"))
+    except urllib.error.HTTPError as e:
+        err_body = e.read().decode('utf-8', errors='ignore')
+        if e.code == 402 or "credit" in err_body.lower() or "không đủ credit" in err_body.lower():
+            raise RuntimeError("Giới hạn tạo voice trong ngày với mô hình này đã hết")
+        raise RuntimeError(f"DinhrinMKT API HTTP Error {e.code}: {err_body}")
+
+    if not res_data.get("ok") and res_data.get("error"):
+        err_msg = str(res_data.get("error"))
+        if "credit" in err_msg.lower() or "không đủ credit" in err_msg.lower():
+            raise RuntimeError("Giới hạn tạo voice trong ngày với mô hình này đã hết")
+        raise RuntimeError(f"DinhrinMKT API Error: {err_msg}")
+
+    task_id = (res_data.get("data") or {}).get("taskId") or res_data.get("taskId")
+    if not task_id:
+        raise RuntimeError("DinhrinMKT API did not return a valid taskId")
+
+    for _ in range(40):
+        status_payload = json.dumps({"action": "tts_status", "ids": [task_id]}).encode("utf-8")
+        req = urllib.request.Request(url, data=status_payload, headers=headers, method="POST")
+        with urllib.request.urlopen(req) as resp:
+            status_data = json.loads(resp.read().decode("utf-8"))
+        items = (status_data.get("data") or {}).get("items") or status_data.get("items") or []
+        status = items[0].get("status", "").lower() if items else ""
+        if status == "completed":
+            break
+        if status in ["failed", "error"]:
+            raise RuntimeError(f"Task {task_id} failed on server: {json.dumps(items)}")
+        time.sleep(1.5)
+    else:
+        raise RuntimeError(f"Task {task_id} timed out polling status")
+
+    dl_payload = json.dumps({"action": "download_task", "task_id": task_id}).encode("utf-8")
+    req = urllib.request.Request(url, data=dl_payload, headers=headers, method="POST")
+    with tempfile.NamedTemporaryFile(suffix=".mp3", delete=False) as f:
+        temp_audio = Path(f.name)
+
+    try:
+        with urllib.request.urlopen(req) as resp:
+            temp_audio.write_bytes(resp.read())
+
+        cmd = [
+            ffmpeg_path, "-y",
+            "-i", str(temp_audio),
+            "-ar", "48000",
+            "-ac", "1",
+            "-c:a", "pcm_s16le",
+            str(out_path)
+        ]
+        res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        if res.returncode != 0:
+            raise RuntimeError(f"FFmpeg conversion failed: {res.stderr.decode('utf-8', errors='ignore')}")
+    finally:
+        try:
+            if temp_audio.exists():
+                temp_audio.unlink()
+        except Exception:
+            pass
+
 def concatenate_wavs(wav_paths, output_path):
     if not wav_paths:
         return
@@ -154,8 +238,12 @@ def concatenate_wavs(wav_paths, output_path):
             w.writeframes(d)
 
 async def main_async():
-    parser = argparse.ArgumentParser(description="Preview TTS Voice (VieNeu / Kokoro).")
-    parser.add_argument("--engine", default="vieneu", choices=["vieneu", "kokoro"])
+    parser = argparse.ArgumentParser(description="Preview TTS Voice (VieNeu / Kokoro / DinhrinMKT).")
+    parser.add_argument("--engine", default="vieneu", choices=["vieneu", "kokoro", "drk_api"])
+    parser.add_argument("--provider", default="local")
+    parser.add_argument("--model-id", default="capcut_free")
+    parser.add_argument("--voice-id", default="")
+    parser.add_argument("--drk-api-key", default="")
     parser.add_argument("--voice", default="Minh Đức")
     parser.add_argument("--kokoro-voice", default="diem_trinh")
     parser.add_argument("--style", default="tin_tuc")
@@ -173,6 +261,14 @@ async def main_async():
     out_path = Path(args.out_wav)
     out_path.parent.mkdir(parents=True, exist_ok=True)
 
+    if args.provider == "drk_api" or args.engine == "drk_api":
+        v_id = args.voice_id or args.voice or "voice51:0"
+        generate_drk_tts(args.text, v_id, args.model_id, args.drk_api_key, out_path, args.ffmpeg_path)
+        if abs(args.speech_rate - 1.0) >= 0.01:
+            adjust_wav_speed(out_path, args.speech_rate, args.ffmpeg_path)
+        print(f"SUCCESS:{out_path}")
+        return
+
     segments = partition_text(args.text, default_lang=args.bracket_lang)
     if not segments:
         print("ERROR: Empty text")
@@ -185,12 +281,20 @@ async def main_async():
 
     def gen_vi(txt, dest_path):
         if args.engine == "kokoro":
-            import soundfile as sf
-            if kokoro_ref[0] is None:
-                from kokoro_vietnamese import KokoroVietnamese
-                kokoro_ref[0] = KokoroVietnamese(device="cpu", voice=args.kokoro_voice)
-            audio, _ = kokoro_ref[0].synthesize(txt)
-            sf.write(str(dest_path), audio, 24000)
+            try:
+                import soundfile as sf
+                if kokoro_ref[0] is None:
+                    from kokoro_vietnamese import KokoroVietnamese
+                    kokoro_ref[0] = KokoroVietnamese(device="cpu", voice=args.kokoro_voice)
+                audio, _ = kokoro_ref[0].synthesize(txt)
+                sf.write(str(dest_path), audio, 24000)
+            except Exception as e:
+                print(f"[warn] Kokoro TTS not available ({e}), falling back to VieNeu-TTS...")
+                if vieneu_ref[0] is None:
+                    from vieneu import Vieneu
+                    vieneu_ref[0] = Vieneu(backend="onnx", precision="int8")
+                audio = vieneu_ref[0].infer(txt, voice="Minh Đức", style="tu_nhien")
+                vieneu_ref[0].save(audio, str(dest_path))
         else:
             if vieneu_ref[0] is None:
                 from vieneu import Vieneu
@@ -215,7 +319,6 @@ async def main_async():
                     await generate_edge_tts(seg_text, lang, seg_wav_path, args.ffmpeg_path, ja_voice=args.ja_voice, en_voice=args.en_voice, zh_voice=args.zh_voice, rate_val=args.foreign_speech_rate)
                     temp_wavs.append(seg_wav_path)
                 except Exception as e:
-                    # Fallback to local
                     gen_vi(seg_text, seg_wav_path)
                     temp_wavs.append(seg_wav_path)
 
@@ -235,3 +338,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

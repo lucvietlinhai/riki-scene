@@ -839,20 +839,28 @@ els.actorResetBtn.addEventListener("click", () => {
 function buildRenderConfig() {
   const list = scenes();
   const voiceModeRadio = document.querySelector('input[name="voiceSourceMode"]:checked');
-  const isCloud = voiceModeRadio && voiceModeRadio.value === "cloud";
+  const mode = voiceModeRadio ? voiceModeRadio.value : "local";
+  const isDrk = mode === "drk_api";
+  const isCloud = mode === "cloud";
   const keys = loadApiKeys();
+  const drkModel = els.drkModelSelect ? els.drkModelSelect.value : "voice51";
+  const drkVoice = els.drkVoiceSelect ? els.drkVoiceSelect.value : "voice51:0";
 
   return {
-    engine: isCloud ? "cloud" : (els.ttsEngineSelect ? els.ttsEngineSelect.value : "vieneu"),
+    provider: mode,
+    engine: isDrk ? "drk_api" : (isCloud ? "cloud" : (els.ttsEngineSelect ? els.ttsEngineSelect.value : "vieneu")),
+    modelId: isDrk ? drkModel : "lingual_speech_v2",
+    voiceId: isDrk ? drkVoice : (isCloud ? (els.cloudVoiceSelect ? els.cloudVoiceSelect.value : "21m00Tcm4TlvDq8ikWAM") : (els.voiceSelect ? els.voiceSelect.value : "Minh Đức")),
+    drkApiKey: keys.drk || "",
     leftTerm: state.globalTerms.left,
     rightTerm: state.globalTerms.right,
     leftColor: els.leftColor.value,
     rightColor: els.rightColor.value,
     leftImage: state.images.left || "",
     rightImage: state.images.right || "",
-    voice: isCloud 
+    voice: isDrk ? drkVoice : (isCloud 
       ? (els.cloudVoiceSelect ? els.cloudVoiceSelect.value : "21m00Tcm4TlvDq8ikWAM")
-      : (els.voiceSelect ? els.voiceSelect.value : "Minh Đức"),
+      : (els.voiceSelect ? els.voiceSelect.value : "Minh Đức")),
     elevenlabsApiKey: keys.elevenlabs || "",
     kokoroVoice: els.kokoroVoiceSelect ? els.kokoroVoiceSelect.value : "diem_trinh",
     style: els.styleSelect.value,
@@ -1433,21 +1441,206 @@ const ELEVENLABS_STATIC_VOICES = [
 ];
 
 // ===================================================================
-// VOICE SOURCE SWITCHER — Toggle Local / Cloud modes
+// LOCAL TTS (VieNeu & Kokoro) — Voice Grid Cards
+// ===================================================================
+const VIENEU_VOICES_DATA = [
+  { value: "Minh Đức", name: "Minh Đức", gender: "Nam", accent: "Miền Bắc", style: "Tin tức" },
+  { value: "Phạm Tuyên", name: "Phạm Tuyên", gender: "Nam", accent: "Miền Bắc", style: "Tự nhiên" },
+  { value: "Thái Sơn", name: "Thái Sơn", gender: "Nam", accent: "Miền Nam", style: "Kể chuyện" },
+  { value: "Xuân Vĩnh", name: "Xuân Vĩnh", gender: "Nam", accent: "Miền Nam", style: "Tự nhiên" },
+  { value: "Thanh Bình", name: "Thanh Bình", gender: "Nam", accent: "Miền Bắc", style: "Kể chuyện" },
+  { value: "Trúc Ly", name: "Trúc Ly", gender: "Nữ", accent: "Miền Bắc", style: "Tự nhiên" },
+  { value: "Ngọc Linh", name: "Ngọc Linh", gender: "Nữ", accent: "Miền Bắc", style: "Kể chuyện" },
+  { value: "Đoan Trang", name: "Đoan Trang", gender: "Nữ", accent: "Miền Bắc", style: "Tự nhiên" },
+  { value: "Mai Anh", name: "Mai Anh", gender: "Nữ", accent: "Miền Bắc", style: "Tin tức" },
+  { value: "Thục Đoan", name: "Thục Đoan", gender: "Nữ", accent: "Miền Nam", style: "Kể chuyện" },
+  { value: "Minh Triết", name: "Minh Triết", gender: "Nam", accent: "Miền Nam", style: "Tin tức" },
+  { value: "Thùy Dung", name: "Thùy Dung", gender: "Nữ", accent: "Miền Nam", style: "Tin tức" },
+  { value: "Quang Sơn", name: "Quang Sơn", gender: "Nam", accent: "Miền Trung", style: "Tự nhiên" },
+  { value: "Ngọc Trân", name: "Ngọc Trân", gender: "Nữ", accent: "Miền Trung", style: "Tự nhiên" },
+];
+
+const KOKORO_VOICES_DATA = [
+  { value: "diem_trinh", name: "Điểm Trịnh", gender: "Nữ", accent: "Kokoro", style: "Ấm áp" },
+  { value: "hung_thinh", name: "Hùng Thịnh", gender: "Nam", accent: "Kokoro", style: "Chuẩn" },
+  { value: "mai_linh", name: "Mai Linh", gender: "Nữ", accent: "Kokoro", style: "Truyền cảm" },
+  { value: "mai_loan", name: "Mai Loan", gender: "Nữ", accent: "Kokoro", style: "Nhẹ nhàng" },
+  { value: "manh_dung", name: "Mạnh Dũng", gender: "Nam", accent: "Kokoro", style: "Trầm ấm" },
+  { value: "my_yen", name: "Mỹ Yến", gender: "Nữ", accent: "Kokoro", style: "Tự nhiên" },
+  { value: "ngoc_huyen", name: "Ngọc Huyền", gender: "Nữ", accent: "Kokoro", style: "Trong trẻo" },
+  { value: "phat_tai", name: "Phát Tài", gender: "Nam", accent: "Kokoro", style: "Năng động" },
+  { value: "thanh_dat", name: "Thành Đạt", gender: "Nam", accent: "Kokoro", style: "Tin tức" },
+  { value: "thuc_trinh", name: "Thục Trịnh", gender: "Nữ", accent: "Kokoro", style: "Dịu dàng" },
+  { value: "tuan_ngoc", name: "Tuấn Ngọc", gender: "Nam", accent: "Kokoro", style: "Kể chuyện" },
+  { value: "storyvert", name: "Storyvert", gender: "Nữ", accent: "Kokoro", style: "Đọc truyện" },
+  { value: "duc_an", name: "Đức An", gender: "Nam", accent: "Kokoro", style: "Trẻ trung" },
+  { value: "duc_duy", name: "Đức Duy", gender: "Nam", accent: "Kokoro", style: "Sôi nổi" },
+];
+
+let localCardPreviewAudio = null;
+let localCardPlayingBtn = null;
+
+function stopLocalCardPreview() {
+  if (localCardPreviewAudio) {
+    localCardPreviewAudio.pause();
+    localCardPreviewAudio = null;
+  }
+  if (localCardPlayingBtn) {
+    localCardPlayingBtn.innerHTML = `<svg viewBox="0 0 24 24"><polygon points="6 4 20 12 6 20 6 4"/></svg>`;
+    localCardPlayingBtn.title = "Nghe thử";
+    localCardPlayingBtn = null;
+  }
+}
+
+function initLocalVoiceSwitcher() {
+  const engineSel = els.ttsEngineSelect;
+  const styleSel = els.styleSelect;
+  const vieneuVoiceSel = els.voiceSelect;
+  const kokoroVoiceSel = els.kokoroVoiceSelect;
+  const listContainer = document.getElementById("localVoiceList");
+
+  if (!engineSel || !listContainer) return;
+
+  function renderLocalVoiceCards() {
+    stopLocalCardPreview();
+    const engine = engineSel.value;
+    const isKokoro = engine === "kokoro";
+
+    if (els.vieneuStyleLabel) {
+      els.vieneuStyleLabel.hidden = isKokoro;
+    }
+
+    const voiceList = isKokoro ? KOKORO_VOICES_DATA : VIENEU_VOICES_DATA;
+    const currentVoiceSel = isKokoro ? kokoroVoiceSel : vieneuVoiceSel;
+    const storageKey = isKokoro ? "riki:settings:kokoro-voice" : "riki:settings:voice";
+    const defaultVal = isKokoro ? "diem_trinh" : "Minh Đức";
+    const selectedVoice = localStorage.getItem(storageKey) || (currentVoiceSel ? currentVoiceSel.value : defaultVal);
+
+    if (currentVoiceSel) currentVoiceSel.value = selectedVoice;
+
+    listContainer.innerHTML = "";
+
+    voiceList.forEach(v => {
+      const card = document.createElement("div");
+      const isSelected = v.value === selectedVoice;
+      card.className = `voice-card ${isSelected ? 'selected' : ''}`;
+      card.dataset.voiceValue = v.value;
+
+      const isFemale = v.gender === "Nữ";
+      const genderClass = isFemale ? "voice-card__tag--female" : "voice-card__tag--male";
+
+      card.innerHTML = `
+        <div class="voice-card__top">
+          <button type="button" class="voice-card__play-btn" title="Nghe thử">
+            <svg viewBox="0 0 24 24"><polygon points="6 4 20 12 6 20 6 4"/></svg>
+          </button>
+          <div class="voice-card__name" title="${v.name}">${v.name}</div>
+        </div>
+        <div class="voice-card__tags">
+          <span class="voice-card__tag ${genderClass}">${v.gender}</span>
+          <span class="voice-card__tag voice-card__tag--accent">${v.accent}</span>
+          <span class="voice-card__tag voice-card__tag--free">${v.style}</span>
+        </div>
+        <div class="voice-card__check">✓</div>
+      `;
+
+      card.addEventListener("click", (e) => {
+        if (e.target.closest(".voice-card__play-btn")) return;
+        listContainer.querySelectorAll(".voice-card").forEach(c => c.classList.remove("selected"));
+        card.classList.add("selected");
+        if (currentVoiceSel) currentVoiceSel.value = v.value;
+        localStorage.setItem(storageKey, v.value);
+      });
+
+      const playBtn = card.querySelector(".voice-card__play-btn");
+      playBtn.addEventListener("click", async (e) => {
+        e.stopPropagation();
+        if (localCardPlayingBtn === playBtn) {
+          stopLocalCardPreview();
+          return;
+        }
+
+        stopLocalCardPreview();
+        localCardPlayingBtn = playBtn;
+        playBtn.innerHTML = `
+          <svg class="preview-spinner" viewBox="0 0 24 24" style="animation: spin 1s linear infinite; width: 12px; height: 12px; fill: none; stroke: currentColor;">
+            <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none" stroke-dasharray="31.4" stroke-linecap="round"/>
+          </svg>
+        `;
+
+        try {
+          const PREVIEW_TEXT = "Xin chào! Đây là giọng đọc thử nghiệm VieNeu xưởng giọng đọc local.";
+          const style = styleSel ? styleSel.value : "tu_nhien";
+          const speechRate = els.speechRateSelect ? parseFloat(els.speechRateSelect.value) || 1.0 : 1.0;
+
+          const result = await window.electronAPI.previewVoice({
+            engine,
+            voice: isKokoro ? "Minh Đức" : v.value,
+            kokoroVoice: isKokoro ? v.value : "diem_trinh",
+            style,
+            text: PREVIEW_TEXT,
+            speechRate
+          });
+
+          if (result && result.success && result.audio) {
+            localCardPreviewAudio = new Audio(result.audio);
+            playBtn.innerHTML = `<svg viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12"/></svg>`;
+            playBtn.title = "Dừng phát";
+            localCardPreviewAudio.play();
+            localCardPreviewAudio.onended = () => stopLocalCardPreview();
+            localCardPreviewAudio.onerror = () => {
+              stopLocalCardPreview();
+              showToast("❌ Lỗi phát audio preview");
+            };
+          } else {
+            stopLocalCardPreview();
+            showToast("❌ Lỗi: " + (result?.error || "Không thể tạo audio preview"));
+          }
+        } catch (err) {
+          stopLocalCardPreview();
+          showToast("❌ Lỗi preview: " + err.message);
+        }
+      });
+
+      listContainer.appendChild(card);
+    });
+  }
+
+  engineSel.addEventListener("change", () => {
+    localStorage.setItem("riki:settings:tts-engine", engineSel.value);
+    renderLocalVoiceCards();
+  });
+
+  const savedEngine = localStorage.getItem("riki:settings:tts-engine") || "vieneu";
+  engineSel.value = savedEngine;
+  renderLocalVoiceCards();
+}
+
+// ===================================================================
+// VOICE SOURCE SWITCHER — Toggle Local / DRK API / Cloud modes
 // ===================================================================
 function initVoiceSourceSwitcher() {
   const radios = document.querySelectorAll('input[name="voiceSourceMode"]');
   const localSection = els.localTtsSection;
+  const drkSection = els.drkApiSection;
   const cloudSection = els.cloudTtsSection;
   const modeLocalLabel = els.modeLocalLabel;
+  const modeDrkLabel = els.modeDrkLabel;
   const modeCloudLabel = els.modeCloudLabel;
 
   function applyMode(mode) {
+    const isLocal = mode === "local";
+    const isDrk = mode === "drk_api";
     const isCloud = mode === "cloud";
-    if (localSection) localSection.hidden = isCloud;
+
+    if (localSection) localSection.hidden = !isLocal;
+    if (drkSection) drkSection.hidden = !isDrk;
     if (cloudSection) cloudSection.hidden = !isCloud;
-    if (modeLocalLabel) modeLocalLabel.classList.toggle("active", !isCloud);
+
+    if (modeLocalLabel) modeLocalLabel.classList.toggle("active", isLocal);
+    if (modeDrkLabel) modeDrkLabel.classList.toggle("active", isDrk);
     if (modeCloudLabel) modeCloudLabel.classList.toggle("active", isCloud);
+
     localStorage.setItem("riki:settings:voice-mode", mode);
   }
 
@@ -1458,6 +1651,181 @@ function initVoiceSourceSwitcher() {
   });
   applyMode(saved);
 }
+
+// ===================================================================
+// DRK API SWITCHER — Dynamic Model & Voice Selector with Cards Grid
+// ===================================================================
+let drkCardPreviewAudio = null;
+let drkCardPlayingBtn = null;
+
+function stopDrkCardPreview() {
+  if (drkCardPreviewAudio) {
+    drkCardPreviewAudio.pause();
+    drkCardPreviewAudio = null;
+  }
+  if (drkCardPlayingBtn) {
+    drkCardPlayingBtn.innerHTML = `<svg viewBox="0 0 24 24"><polygon points="6 4 20 12 6 20 6 4"/></svg>`;
+    drkCardPlayingBtn.title = "Nghe thử";
+    drkCardPlayingBtn = null;
+  }
+}
+
+function initDrkApiSwitcher() {
+  const modelSel = els.drkModelSelect;
+  const voiceSel = els.drkVoiceSelect;
+  const listContainer = document.getElementById("drkVoiceList");
+  if (!modelSel || !voiceSel || !listContainer) return;
+
+  async function loadVoicesForModel(modelId) {
+    stopDrkCardPreview();
+    listContainer.innerHTML = "<div style='grid-column: 1/-1; padding: 20px; text-align: center; color: var(--ink-soft); font-size: 13px;'>⏳ Đang tải danh sách giọng đọc dinhrinmkt...</div>";
+
+    try {
+      const keys = loadApiKeys();
+      const apiKey = keys.drk;
+      const res = await window.electronAPI.fetchDrkVoices(modelId, apiKey);
+      listContainer.innerHTML = "";
+      voiceSel.innerHTML = "";
+
+      let voices = [];
+      if (res && res.success && res.voices && res.voices.length > 0) {
+        voices = res.voices;
+      } else {
+        voices = [
+          modelId === "capcut_free"
+            ? { id: "capcut:bv:BV560_streaming", name: "Anh Dũng (Vi)", gender: "male" }
+            : { id: "voice51:0", name: "Giọng Adam", gender: "male" }
+        ];
+      }
+
+      voices.forEach(v => {
+        const opt = document.createElement("option");
+        opt.value = v.id;
+        opt.textContent = v.name || v.id;
+        voiceSel.appendChild(opt);
+      });
+
+      const savedVoice = localStorage.getItem(`riki:settings:drk-voice:${modelId}`) || voices[0].id;
+      voiceSel.value = savedVoice;
+
+      voices.forEach(v => {
+        const card = document.createElement("div");
+        const isSelected = v.id === savedVoice;
+        card.className = `voice-card ${isSelected ? 'selected' : ''}`;
+        card.dataset.voiceId = v.id;
+
+        const gRaw = (v.gender || "").toLowerCase();
+        const isFemale = gRaw.includes("female") || gRaw.includes("nữ") || gRaw.includes("nu");
+        const genderLabel = isFemale ? "Nữ" : "Nam";
+        const genderClass = isFemale ? "voice-card__tag--female" : "voice-card__tag--male";
+
+        const voiceName = v.name || v.id;
+
+        card.innerHTML = `
+          <div class="voice-card__top">
+            <button type="button" class="voice-card__play-btn" title="Nghe thử">
+              <svg viewBox="0 0 24 24"><polygon points="6 4 20 12 6 20 6 4"/></svg>
+            </button>
+            <div class="voice-card__name" title="${voiceName}">${voiceName}</div>
+          </div>
+          <div class="voice-card__tags">
+            <span class="voice-card__tag ${genderClass}">${genderLabel}</span>
+            <span class="voice-card__tag voice-card__tag--free">Miễn phí</span>
+          </div>
+          <div class="voice-card__check">✓</div>
+        `;
+
+        card.addEventListener("click", (e) => {
+          if (e.target.closest(".voice-card__play-btn")) return;
+          listContainer.querySelectorAll(".voice-card").forEach(c => c.classList.remove("selected"));
+          card.classList.add("selected");
+          voiceSel.value = v.id;
+          voiceSel.dispatchEvent(new Event("change"));
+          localStorage.setItem(`riki:settings:drk-voice:${modelId}`, v.id);
+        });
+
+        const playBtn = card.querySelector(".voice-card__play-btn");
+        playBtn.addEventListener("click", async (e) => {
+          e.stopPropagation();
+          if (drkCardPlayingBtn === playBtn) {
+            stopDrkCardPreview();
+            return;
+          }
+
+          stopDrkCardPreview();
+          drkCardPlayingBtn = playBtn;
+          playBtn.innerHTML = `
+            <svg class="preview-spinner" viewBox="0 0 24 24" style="animation: spin 1s linear infinite; width: 12px; height: 12px; fill: none; stroke: currentColor;">
+              <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none" stroke-dasharray="31.4" stroke-linecap="round"/>
+            </svg>
+          `;
+
+          try {
+            const PREVIEW_TEXT = "Xin chào! Đây là giọng đọc thử nghiệm dinhrinmkt.";
+            const keys = loadApiKeys();
+            const result = await window.electronAPI.previewVoice({
+              provider: "drk_api",
+              engine: "drk_api",
+              modelId,
+              voiceId: v.id,
+              drkApiKey: keys.drk,
+              text: PREVIEW_TEXT,
+              speechRate: 1.0
+            });
+
+            if (result && result.success && result.audio) {
+              drkCardPreviewAudio = new Audio(result.audio);
+              playBtn.innerHTML = `<svg viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12"/></svg>`;
+              playBtn.title = "Dừng phát";
+              drkCardPreviewAudio.play();
+              drkCardPreviewAudio.onended = () => stopDrkCardPreview();
+              drkCardPreviewAudio.onerror = () => {
+                stopDrkCardPreview();
+                showToast("❌ Lỗi phát audio preview");
+              };
+            } else {
+              stopDrkCardPreview();
+              let errText = result?.error || "Không thể tạo audio preview";
+              if (errText.includes("402") || errText.includes("credit") || errText.includes("Không đủ credit")) {
+                errText = "Giới hạn tạo voice trong ngày với mô hình này đã hết";
+              }
+              showToast("⚠️ " + errText);
+            }
+          } catch (err) {
+            stopDrkCardPreview();
+            let errText = err.message || String(err);
+            if (errText.includes("402") || errText.includes("credit") || errText.includes("Không đủ credit")) {
+              errText = "Giới hạn tạo voice trong ngày với mô hình này đã hết";
+            }
+            showToast("⚠️ " + errText);
+          }
+        });
+
+        listContainer.appendChild(card);
+      });
+
+    } catch (err) {
+      console.warn("Không thể tải danh sách giọng từ DRK API:", err);
+      listContainer.innerHTML = "<div style='grid-column: 1/-1; padding: 20px; text-align: center; color: #cc3322;'>Không thể tải danh sách giọng từ dinhrinmkt API.</div>";
+    }
+  }
+
+  const savedModel = localStorage.getItem("riki:settings:drk-model") || "voice51";
+  modelSel.value = savedModel;
+
+  modelSel.addEventListener("change", () => {
+    const m = modelSel.value;
+    localStorage.setItem("riki:settings:drk-model", m);
+    loadVoicesForModel(m);
+  });
+
+  voiceSel.addEventListener("change", () => {
+    localStorage.setItem(`riki:settings:drk-voice:${modelSel.value}`, voiceSel.value);
+  });
+
+  loadVoicesForModel(savedModel);
+}
+
 
 async function fetchElevenLabsVoices(apiKey) {
   if (!apiKey) return null;
@@ -1707,14 +2075,18 @@ function initCloudProviderSwitcher() {
 // API KEY STORAGE
 // ===================================================================
 const API_KEY_STORAGE = {
+  drk:          "riki:apikey:drk",
   openai:       "riki:apikey:openai",
   elevenlabs:   "riki:apikey:elevenlabs",
   fptai:        "riki:apikey:fptai",
 };
 
+const DEFAULT_DRK_KEY = "drk_4d09a9ddb66ead101af0d93346355bb502c9616f3a2827e2";
+
 function loadApiKeys() {
   return {
-    elevenlabs:  localStorage.getItem(API_KEY_STORAGE.elevenlabs)  || "",
+    drk:         localStorage.getItem(API_KEY_STORAGE.drk) || DEFAULT_DRK_KEY,
+    elevenlabs:  localStorage.getItem(API_KEY_STORAGE.elevenlabs) || "",
   };
 }
 
@@ -1732,6 +2104,7 @@ function saveApiKeys(keys) {
 // ===================================================================
 function initApiKeyModal() {
   const openBtn     = els.openApiKeyModalBtn;
+  const openDrkBtn  = els.openDrkApiKeyModalBtn;
   const modal       = els.apiKeyModal;
   const backdrop    = els.apiKeyModalBackdrop;
   const closeBtn    = els.apiKeyModalClose;
@@ -1756,14 +2129,26 @@ function initApiKeyModal() {
 
   function updateApiKeyQuickStatus() {
     const statusEl = els.apiKeyQuickStatus;
-    if (!statusEl) return;
-    const keys = loadApiKeys();
-    if (keys.elevenlabs) {
-      statusEl.textContent = "Đã cấu hình ElevenLabs ✓";
-      statusEl.classList.add("is-ready");
-    } else {
-      statusEl.textContent = "Chưa cấu hình";
-      statusEl.classList.remove("is-ready");
+    if (statusEl) {
+      const keys = loadApiKeys();
+      if (keys.elevenlabs) {
+        statusEl.textContent = "Đã cấu hình ElevenLabs ✓";
+        statusEl.classList.add("is-ready");
+      } else {
+        statusEl.textContent = "Chưa cấu hình";
+        statusEl.classList.remove("is-ready");
+      }
+    }
+    const drkStatusEl = els.drkApiKeyQuickStatus;
+    if (drkStatusEl) {
+      const keys = loadApiKeys();
+      if (keys.drk) {
+        drkStatusEl.textContent = "Đã sẵn sàng Key ✓";
+        drkStatusEl.classList.add("is-ready");
+      } else {
+        drkStatusEl.textContent = "Chưa cấu hình";
+        drkStatusEl.classList.remove("is-ready");
+      }
     }
   }
 
@@ -1779,6 +2164,7 @@ function initApiKeyModal() {
   }
 
   function updateAllCardStates() {
+    updateCardState("cardDrk", "badgeDrk", els.apiKeyDrk ? els.apiKeyDrk.value : DEFAULT_DRK_KEY);
     updateCardState("cardElevenLabs", "badgeElevenLabs", els.apiKeyElevenLabs ? els.apiKeyElevenLabs.value : "");
     updateApiKeyQuickStatus();
   }
@@ -1786,16 +2172,17 @@ function initApiKeyModal() {
   function openModal() {
     if (!modal) return;
     const keys = loadApiKeys();
+    if (els.apiKeyDrk) els.apiKeyDrk.value = keys.drk;
     if (els.apiKeyElevenLabs) els.apiKeyElevenLabs.value = keys.elevenlabs;
     if (statusEl) { statusEl.textContent = ""; statusEl.className = "api-key-status"; }
     
     modal.hidden = false;
     updateAllCardStates();
     if (titleEl) {
-      titleEl.textContent = "Cấu hình API Key — ElevenLabs";
+      titleEl.textContent = "Cấu hình API Key — Voice API Provider & ElevenLabs";
     }
-    if (els.apiKeyElevenLabs) {
-      setTimeout(() => els.apiKeyElevenLabs.focus(), 100);
+    if (els.apiKeyDrk) {
+      setTimeout(() => els.apiKeyDrk.focus(), 100);
     }
   }
 
@@ -1805,6 +2192,7 @@ function initApiKeyModal() {
 
   function saveKeys() {
     const keys = {
+      drk:         els.apiKeyDrk ? els.apiKeyDrk.value.trim() : DEFAULT_DRK_KEY,
       elevenlabs:  els.apiKeyElevenLabs ? els.apiKeyElevenLabs.value.trim() : "",
     };
     saveApiKeys(keys);
@@ -1814,22 +2202,24 @@ function initApiKeyModal() {
     }
     
     if (statusEl) {
-      statusEl.textContent = `✅ Đã lưu cấu hình ElevenLabs thành công!`;
+      statusEl.textContent = `✅ Đã lưu cấu hình API Keys thành công!`;
       statusEl.className = "api-key-status";
     }
-    addAppLog("info", "ApiKey", `API Key ElevenLabs đã được cập nhật và lưu local.`);
+    addAppLog("info", "ApiKey", `API Key đã được cập nhật và lưu local.`);
     setTimeout(() => closeModal(), 1000);
   }
 
-  if (openBtn)  openBtn.addEventListener("click", openModal);
-  if (closeBtn) closeBtn.addEventListener("click", closeModal);
-  if (cancelBtn) cancelBtn.addEventListener("click", closeModal);
-  if (saveBtn)   saveBtn.addEventListener("click", saveKeys);
-  if (backdrop) backdrop.addEventListener("click", closeModal);
+  if (openBtn)    openBtn.addEventListener("click", openModal);
+  if (openDrkBtn) openDrkBtn.addEventListener("click", openModal);
+  if (closeBtn)   closeBtn.addEventListener("click", closeModal);
+  if (cancelBtn)  cancelBtn.addEventListener("click", closeModal);
+  if (saveBtn)    saveBtn.addEventListener("click", saveKeys);
+  if (backdrop)   backdrop.addEventListener("click", closeModal);
 
   // Initial status check on page load
   updateApiKeyQuickStatus();
 }
+
 
 
 // ===================================================================
@@ -1967,6 +2357,55 @@ function initVoicePreview() {
         setPreviewState(false, false);
       }
 
+    } else if (mode === "drk_api") {
+      const keys = loadApiKeys();
+      const modelId = els.drkModelSelect ? els.drkModelSelect.value : "capcut_free";
+      const voiceId = els.drkVoiceSelect ? els.drkVoiceSelect.value : "voice51:0";
+      const speechRate = els.speechRateSelect ? parseFloat(els.speechRateSelect.value) || 1.0 : 1.0;
+
+      setPreviewState(true, false);
+      try {
+        const result = await window.electronAPI.previewVoice({
+          provider: "drk_api",
+          engine: "drk_api",
+          modelId,
+          voiceId,
+          drkApiKey: keys.drk,
+          text: PREVIEW_TEXT,
+          speechRate
+        });
+
+        if (result && result.success && result.audio) {
+          previewAudio = new Audio(result.audio);
+          setPreviewState(false, true);
+          previewAudio.play();
+          addAppLog("info", "TTS DRK Preview", `Phát giọng thử Voice API thành công (${modelId} - ${voiceId})`);
+          showToast(`Đang phát giọng API Provider (${modelId}): ${voiceId} ✓`);
+
+          previewAudio.onended = () => setPreviewState(false, false);
+          previewAudio.onerror = () => {
+            showToast("❌ Không thể phát audio preview");
+            setPreviewState(false, false);
+          };
+        } else {
+          let errText = result?.error || "Không thể tạo audio từ Voice API";
+          if (errText.includes("402") || errText.includes("credit") || errText.includes("Không đủ credit")) {
+            errText = "Giới hạn tạo voice trong ngày với mô hình này đã hết";
+          }
+          addAppLog("error", "TTS DRK Preview", `Lỗi Voice API preview: ${errText}`);
+          showToast(`⚠️ ${errText}`);
+          setPreviewState(false, false);
+        }
+      } catch (err) {
+        let errText = err.message || String(err);
+        if (errText.includes("402") || errText.includes("credit") || errText.includes("Không đủ credit")) {
+          errText = "Giới hạn tạo voice trong ngày với mô hình này đã hết";
+        }
+        addAppLog("error", "TTS DRK Preview", `Lỗi Voice API preview: ${errText}`);
+        showToast(`⚠️ ${errText}`);
+        setPreviewState(false, false);
+      }
+
     } else {
       const provider = "elevenlabs";
       const apiKeys = loadApiKeys();
@@ -2009,7 +2448,9 @@ function initVoicePreview() {
 
 
 updateVoiceDropdown();
+initLocalVoiceSwitcher();
 initVoiceSourceSwitcher();
+initDrkApiSwitcher();
 initCloudProviderSwitcher();
 initVoicePreview();
 initApiKeyModal();
@@ -2018,3 +2459,4 @@ initInteractivePreview();
 initAppLogger();
 initGitUpdater();
 render();
+

@@ -2707,6 +2707,7 @@ textarea {
 .voice-source-options {
   display: flex;
   gap: 8px;
+  flex-wrap: wrap;
 }
 
 .voice-source-btn {
@@ -3445,6 +3446,20 @@ textarea {
 .voice-card__tag--gender {
   background: #eaf4ff;
   color: #1a6cb2;
+}
+
+.voice-card__tag--male {
+  background: #e6f4ff;
+  color: #0958d9;
+  border: 1px solid #91caff;
+  font-weight: 700;
+}
+
+.voice-card__tag--female {
+  background: #fff0f6;
+  color: #c41d7f;
+  border: 1px solid #ffadd2;
+  font-weight: 700;
 }
 
 .voice-card__tag--accent {

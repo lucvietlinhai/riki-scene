@@ -356,55 +356,30 @@
                 <input type="radio" name="voiceSourceMode" value="local" checked />
                 <span>⚙️ Engine Cục bộ (Local - Miễn phí)</span>
               </label>
+              <label class="voice-source-btn" id="modeDrkLabel">
+                <input type="radio" name="voiceSourceMode" value="drk_api" />
+                <span>🔑 dinhrinmkt (Capcut Free & 51 Giọng)</span>
+              </label>
               <label class="voice-source-btn" id="modeCloudLabel">
                 <input type="radio" name="voiceSourceMode" value="cloud" />
-                <span>☁️ Cloud API Provider (Multilingual)</span>
+                <span>☁️ ElevenLabs Cloud Voice</span>
               </label>
             </div>
           </div>
 
           <div id="localTtsSection">
-            <div class="voice-grid">
+            <div class="elevenlabs-header-row">
+              <div class="elevenlabs-header-left">
+                <span class="elevenlabs-brand-icon">⚙️</span>
+                <strong>Giọng đọc Cục bộ (VieNeu & Kokoro - Miễn phí)</strong>
+              </div>
+            </div>
+
+            <div style="margin-bottom: 12px;" class="voice-grid">
               <label class="field-label">Bộ máy TTS
                 <select id="ttsEngineSelect">
                   <option value="vieneu" selected>VieNeu-TTS · ONNX CPU</option>
                   <option value="kokoro">Kokoro-Vietnamese · ONNX CPU</option>
-                </select>
-              </label>
-              <label class="field-label" id="kokoroVoiceLabel" hidden>Giọng đọc Kokoro
-                <select id="kokoroVoiceSelect">
-                  <option value="diem_trinh" selected>Điểm Trịnh — Nữ · Ấm áp</option>
-                  <option value="hung_thinh">Hùng Thịnh — Nam · Chuẩn</option>
-                  <option value="mai_linh">Mai Linh — Nữ · Truyền cảm</option>
-                  <option value="mai_loan">Mai Loan — Nữ · Nhẹ nhàng</option>
-                  <option value="manh_dung">Mạnh Dũng — Nam · Trầm ấm</option>
-                  <option value="my_yen">Mỹ Yến — Nữ · Tự nhiên</option>
-                  <option value="ngoc_huyen">Ngọc Huyền — Nữ · Trong trẻo</option>
-                  <option value="phat_tai">Phát Tài — Nam · Năng động</option>
-                  <option value="thanh_dat">Thành Đạt — Nam · Tin tức</option>
-                  <option value="thuc_trinh">Thục Trịnh — Nữ · Dịu dàng</option>
-                  <option value="tuan_ngoc">Tuấn Ngọc — Nam · Kể chuyện</option>
-                  <option value="storyvert">Storyvert — Nữ · Đọc truyện</option>
-                  <option value="duc_an">Đức An — Nam · Trẻ trung</option>
-                  <option value="duc_duy">Đức Duy — Nam · Sôi nổi</option>
-                </select>
-              </label>
-              <label class="field-label" id="vieneuVoiceLabel">Giọng đọc VieNeu
-                <select id="voiceSelect">
-                  <option value="Minh Đức">Minh Đức — Nam · Bắc · Tin tức</option>
-                  <option value="Phạm Tuyên">Phạm Tuyên — Nam · Bắc · Tự nhiên</option>
-                  <option value="Thái Sơn">Thái Sơn — Nam · Nam · Kể chuyện</option>
-                  <option value="Xuân Vĩnh">Xuân Vĩnh — Nam · Nam · Tự nhiên</option>
-                  <option value="Thanh Bình">Thanh Bình — Nam · Bắc · Kể chuyện</option>
-                  <option value="Trúc Ly">Trúc Ly — Nữ · Bắc · Tự nhiên</option>
-                  <option value="Ngọc Linh">Ngọc Linh — Nữ · Bắc · Kể chuyện</option>
-                  <option value="Đoan Trang">Đoan Trang — Nữ · Bắc · Tự nhiên</option>
-                  <option value="Mai Anh">Mai Anh — Nữ · Bắc · Tin tức</option>
-                  <option value="Thục Đoan">Thục Đoan — Nữ · Nam · Kể chuyện</option>
-                  <option value="Minh Triết">Minh Triết — Nam · Nam · Tin tức</option>
-                  <option value="Thùy Dung">Thùy Dung — Nữ · Nam · Tin tức</option>
-                  <option value="Quang Sơn">Quang Sơn — Nam · Trung · Tự nhiên</option>
-                  <option value="Ngọc Trân">Ngọc Trân — Nữ · Trung · Tự nhiên</option>
                 </select>
               </label>
               <label class="field-label" id="vieneuStyleLabel">Phong cách
@@ -414,6 +389,89 @@
                   <option value="doc_truyen">Đọc truyện</option>
                 </select>
               </label>
+            </div>
+
+            <!-- Hidden selects kept for backward compatibility -->
+            <select id="voiceSelect" style="display: none;">
+              <option value="Minh Đức" selected>Minh Đức</option>
+              <option value="Phạm Tuyên">Phạm Tuyên</option>
+              <option value="Thái Sơn">Thái Sơn</option>
+              <option value="Xuân Vĩnh">Xuân Vĩnh</option>
+              <option value="Thanh Bình">Thanh Bình</option>
+              <option value="Trúc Ly">Trúc Ly</option>
+              <option value="Ngọc Linh">Ngọc Linh</option>
+              <option value="Đoan Trang">Đoan Trang</option>
+              <option value="Mai Anh">Mai Anh</option>
+              <option value="Thục Đoan">Thục Đoan</option>
+              <option value="Minh Triết">Minh Triết</option>
+              <option value="Thùy Dung">Thùy Dung</option>
+              <option value="Quang Sơn">Quang Sơn</option>
+              <option value="Ngọc Trân">Ngọc Trân</option>
+            </select>
+
+            <select id="kokoroVoiceSelect" style="display: none;">
+              <option value="diem_trinh" selected>Điểm Trịnh</option>
+              <option value="hung_thinh">Hùng Thịnh</option>
+              <option value="mai_linh">Mai Linh</option>
+              <option value="mai_loan">Mai Loan</option>
+              <option value="manh_dung">Mạnh Dũng</option>
+              <option value="my_yen">Mỹ Yến</option>
+              <option value="ngoc_huyen">Ngọc Huyền</option>
+              <option value="phat_tai">Phát Tài</option>
+              <option value="thanh_dat">Thành Đạt</option>
+              <option value="thuc_trinh">Thục Trịnh</option>
+              <option value="tuan_ngoc">Tuấn Ngọc</option>
+              <option value="storyvert">Storyvert</option>
+              <option value="duc_an">Đức An</option>
+              <option value="duc_duy">Đức Duy</option>
+            </select>
+
+            <!-- Voice Grid Container for Local TTS -->
+            <div class="elevenlabs-voice-container">
+              <div id="localVoiceList" class="elevenlabs-voice-grid">
+                <!-- Dynamically generated voice cards will go here -->
+              </div>
+            </div>
+          </div>
+
+          <div id="drkApiSection" hidden>
+            <div class="elevenlabs-header-row">
+              <div class="elevenlabs-header-left">
+                <span class="elevenlabs-brand-icon">🔑</span>
+                <strong>dinhrinmkt Voice API Provider</strong>
+              </div>
+              <div class="api-key-quick-wrap">
+                <span class="api-key-quick-status is-ready" id="drkApiKeyQuickStatus">Đã sẵn sàng Key ✓</span>
+                <button id="openDrkApiKeyModalBtn" type="button" class="btn-small-api">
+                  ⚙️ Cấu hình Key
+                </button>
+              </div>
+            </div>
+
+            <div style="margin-bottom: 12px;">
+              <label class="field-label">Chọn mô hình giọng đọc
+                <select id="drkModelSelect">
+                  <option value="voice51" selected>🎁 51 Giọng Voice — 51 giọng + bộ V24 đầy đủ (Miễn phí)</option>
+                  <option value="capcut_free">🎁 Capcut Free — Admin bật/tắt credit (Miễn phí)</option>
+                </select>
+              </label>
+            </div>
+
+            <!-- Hidden select kept for compatibility -->
+            <select id="drkVoiceSelect" style="display: none;"></select>
+
+            <!-- Voice Grid for dinhrinmkt voices -->
+            <div class="elevenlabs-voice-container">
+              <div id="drkVoiceList" class="elevenlabs-voice-grid">
+                <!-- Dynamically generated voice cards will go here -->
+              </div>
+            </div>
+
+            <div class="cloud-note-box" style="margin-bottom: 12px;">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="cloud-note-icon">
+                <circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>
+              </svg>
+              <span><strong>Mô hình Miễn phí:</strong> <code>Capcut Free</code> (~100 giọng) và <code>51 Giọng Voice</code> (51 giọng) cho phép kết xuất giọng đọc chất lượng cao miễn phí.</span>
             </div>
           </div>
 
@@ -454,6 +512,7 @@
               <span><strong>Lưu ý:</strong> ElevenLabs cung cấp các giọng đọc AI với cảm xúc và độ chân thực cực cao. Nhập API Key để tự động tải các giọng nói của bạn và Shared Library.</span>
             </div>
           </div>
+
 
           <div class="voice-grid voice-grid--common">
             <label class="field-label">Hiệu ứng chữ
@@ -844,6 +903,26 @@ Khi so sánh hai khái niệm, hãy nhìn vào điểm khác nhau trong cách đ
             </div>
             <div class="api-key-card__foot">
               <span class="api-key-card__hint">Lấy API key tại <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener">platform.openai.com</a></span>
+            </div>
+          </div>
+
+          <!-- DinhrinMKT Voice API Card -->
+          <div class="api-key-card" data-provider="drk" id="cardDrk">
+            <div class="api-key-card__head">
+              <div class="api-key-card__title">
+                <span class="api-key-card__icon">🔑</span>
+                <span>Voice API Key (voice.dinhrinmkt.top)</span>
+              </div>
+              <span class="api-key-card__badge" id="badgeDrk">Key mặc định ✓</span>
+            </div>
+            <div class="api-key-card__row">
+              <input type="password" id="apiKeyDrk" class="api-key-card__input" placeholder="drk_..." autocomplete="off" value="drk_4d09a9ddb66ead101af0d93346355bb502c9616f3a2827e2" />
+              <button type="button" class="btn-eye" data-target="apiKeyDrk" title="Hiện/Ẩn key">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+              </button>
+            </div>
+            <div class="api-key-card__foot">
+              <span class="api-key-card__hint">Key dùng chung cho TTS, Capcut Free, 51 Giọng Voice và Tạo Ảnh Minh Họa trên dinhrinmkt.top.</span>
             </div>
           </div>
 

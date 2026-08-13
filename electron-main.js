@@ -60,37 +60,74 @@ function ensureTTSEnvironment() {
     console.log("[Electron] Auto-installing VieNeu-TTS environment...");
     const setupScript = path.join(RESOURCES_DIR, "setup-binaries.js");
     spawnSync("node", [setupScript], { cwd: RESOURCES_DIR, stdio: "inherit" });
-  } else {
-    const check = spawnSync(uvBin, ["run", "--project", ttsDir, "python", "-c", "import vieneu"], {
-      cwd: ttsDir,
-      env: { ...process.env, PYTHONIOENCODING: "utf-8" },
-      shell: false
-    });
-    if (check.status !== 0) {
-      console.log("[Electron] vieneu module missing in Python venv. Auto-syncing...");
-      spawnSync(uvBin, ["sync", "--project", ttsDir, "--directory", ttsDir, "--no-group", "dev", "--no-group", "gpu"], {
-        cwd: ttsDir,
-        stdio: "inherit",
-        env: { ...process.env }
-      });
-    }
   }
   return fs.existsSync(uvBin) ? uvBin : "uv";
 }
 
+function getPythonRunner() {
+  const ttsDir = path.join(RESOURCES_DIR, "local-tts", "VieNeu-TTS");
+  const venvPython = process.platform === "win32"
+    ? path.join(ttsDir, ".venv", "Scripts", "python.exe")
+    : path.join(ttsDir, ".venv", "bin", "python");
 
-ipcMain.handle("voice:preview", async (_event, { engine, voice, kokoroVoice, style, text, bracketLang, jaVoice, enVoice, zhVoice, speechRate, foreignSpeechRate }) => {
+  if (fs.existsSync(venvPython)) {
+    return { bin: venvPython, isUv: false };
+  }
+  const uvBin = ensureTTSEnvironment();
+  return { bin: uvBin, isUv: true };
+}
+
+
+const { getVoices, generateSpeechAudio } = require("./renderer/voice-api-client");
+
+ipcMain.handle("voice:fetch-drk-voices", async (_event, { modelId, apiKey }) => {
+  try {
+    const res = await getVoices(modelId, { apiKey });
+    if (res && res.ok && res.data && res.data.items) {
+      return { success: true, voices: res.data.items };
+    }
+    const errText = res?.error || "Không tải được danh sách giọng";
+    if (errText.includes("402") || errText.includes("credit") || errText.includes("Không đủ credit")) {
+      return { success: false, error: "Giới hạn tạo voice trong ngày với mô hình này đã hết" };
+    }
+    return { success: false, error: errText };
+  } catch (err) {
+    let msg = err.message || String(err);
+    if (msg.includes("402") || msg.includes("credit") || msg.includes("Không đủ credit")) {
+      msg = "Giới hạn tạo voice trong ngày với mô hình này đã hết";
+    }
+    return { success: false, error: msg };
+  }
+});
+
+ipcMain.handle("voice:preview", async (_event, { engine, voice, kokoroVoice, style, text, bracketLang, jaVoice, enVoice, zhVoice, speechRate, foreignSpeechRate, provider, modelId, voiceId, drkApiKey }) => {
   const sampleText = text || `Xin chào, đây là giọng đọc thử nghiệm!`;
-  const outWav = path.join(os.tmpdir(), `voice-preview-${Date.now()}.wav`);
 
-  const cmd = ensureTTSEnvironment();
+  if (provider === "drk_api" || engine === "drk_api") {
+    try {
+      const buffer = await generateSpeechAudio({
+        text: sampleText,
+        voiceId: voiceId || voice || "voice51:0",
+        modelId: modelId || "voice51"
+      }, { apiKey: drkApiKey });
+      const base64 = buffer.toString("base64");
+      return { success: true, audio: `data:audio/mp3;base64,${base64}` };
+    } catch (err) {
+      let errMsg = err.message || String(err);
+      if (errMsg.includes("402") || errMsg.includes("credit") || errMsg.includes("Không đủ credit")) {
+        errMsg = "Giới hạn tạo voice trong ngày với mô hình này đã hết";
+      }
+      console.error("[voice:preview drk_api Error]", err);
+      return { success: false, error: errMsg };
+    }
+  }
+
+  const outWav = path.join(os.tmpdir(), `voice-preview-${Date.now()}.wav`);
+  const runner = getPythonRunner();
   const scriptPath = path.join(RESOURCES_DIR, "renderer", "preview_voice.py");
   const cwdDir = path.join(RESOURCES_DIR, "local-tts", "VieNeu-TTS");
 
-  const spawnArgs = [
-    "run",
-    "python",
-    scriptPath,
+  const scriptArgs = [
     "--engine", engine || "vieneu",
     "--voice", voice || "Minh Đức",
     "--kokoro-voice", kokoroVoice || "diem_trinh",
@@ -103,11 +140,19 @@ ipcMain.handle("voice:preview", async (_event, { engine, voice, kokoroVoice, sty
     "--en-voice", enVoice || "en-US-AriaNeural",
     "--zh-voice", zhVoice || "zh-CN-XiaoxiaoNeural",
     "--speech-rate", String(speechRate || 1.0),
-    "--foreign-speech-rate", String(foreignSpeechRate || 1.0)
+    "--foreign-speech-rate", String(foreignSpeechRate || 1.0),
+    "--provider", provider || "local",
+    "--model-id", modelId || "capcut_free",
+    "--voice-id", voiceId || voice || "voice51:0",
+    "--drk-api-key", drkApiKey || ""
   ];
 
+  const spawnArgs = runner.isUv
+    ? ["run", "--project", cwdDir, "python", scriptPath, ...scriptArgs]
+    : [scriptPath, ...scriptArgs];
+
   return new Promise((resolve, reject) => {
-    const child = spawn(cmd, spawnArgs, {
+    const child = spawn(runner.bin, spawnArgs, {
       cwd: cwdDir,
       env: { ...process.env, PYTHONIOENCODING: "utf-8", NLTK_DISABLE_IMPORT_SECURITY: "1" }
     });
@@ -162,6 +207,10 @@ ipcMain.on("render:start", (event, config) => {
   const manifest = {
     settings: { width: 1080, height: 1920, fps: 24, format: "9:16" },
     engine: config.engine || "vieneu",
+    provider: config.provider || "local",
+    modelId: config.modelId || "lingual_speech_v2",
+    voiceId: config.voiceId || config.voice || "voice51:0",
+    drkApiKey: config.drkApiKey || "",
     title: `${config.leftTerm} và ${config.rightTerm}`,
     leftTerm: config.leftTerm || "Trái",
     rightTerm: config.rightTerm || "Phải",

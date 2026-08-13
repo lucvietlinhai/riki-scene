@@ -136,20 +136,25 @@ async function main() {
   console.log(`[render] Engine: ${engine} · Voice: ${voiceDisplay} · Scenes: ${manifest.scenes.length}`);
   console.log("[PROGRESS:5]");
 
-  const cmd = ensureTTSEnvironment();
-  const scriptPath = path.join(root, "renderer", "vieneu_scene_tts.py");
-  const cwdDir = path.join(root, "local-tts", "VieNeu-TTS");
+  const venvPython = process.platform === "win32"
+    ? path.join(cwdDir, ".venv", "Scripts", "python.exe")
+    : path.join(cwdDir, ".venv", "bin", "python");
 
-  const spawnArgs = [
-    "run",
-    "python",
-    scriptPath,
+  const useDirectPython = fs.existsSync(venvPython);
+  const cmd = useDirectPython ? venvPython : ensureTTSEnvironment();
+  const scriptPath = path.join(root, "renderer", "vieneu_scene_tts.py");
+
+  const scriptArgs = [
     "--manifest", manifestPath,
     "--out-dir", audioDir,
     "--voice", voice,
     "--style", style,
     "--ffmpeg-path", ffmpegPath
   ];
+
+  const spawnArgs = useDirectPython
+    ? [scriptPath, ...scriptArgs]
+    : ["run", "--project", cwdDir, "python", scriptPath, ...scriptArgs];
 
   run(cmd, spawnArgs, cwdDir, { PYTHONIOENCODING: "utf-8", NLTK_DISABLE_IMPORT_SECURITY: "1" });
 

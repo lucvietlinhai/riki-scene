@@ -16,6 +16,9 @@ contextBridge.exposeInMainWorld("electronAPI", {
   async previewVoice(data) {
     return ipcRenderer.invoke("voice:preview", data);
   },
+  async fetchDrkVoices(modelId, apiKey) {
+    return ipcRenderer.invoke("voice:fetch-drk-voices", { modelId, apiKey });
+  },
   onLog(callback) {
     ipcRenderer.on("render:log", (_event, data) => callback(data));
   },
@@ -29,3 +32,4 @@ contextBridge.exposeInMainWorld("electronAPI", {
     return ipcRenderer.invoke("app:update-code");
   },
 });
+
