@@ -1,5 +1,6 @@
 import argparse
 import json
+import os
 import re
 from pathlib import Path
 import wave
@@ -7,6 +8,23 @@ import asyncio
 import tempfile
 import shutil
 import sys
+
+# Redirect HuggingFace cache to local-tts/.cache on D: drive to prevent disk full error on C:
+if "HF_HOME" not in os.environ:
+    cache_dir = Path(__file__).parent.parent / "local-tts" / ".cache"
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    os.environ["HF_HOME"] = str(cache_dir)
+
+FEMALE_VOICES = {
+    "Trúc Ly", "Ngọc Linh", "Đoan Trang", "Mai Anh", "Thục Đoan", "Thùy Dung", "Ngọc Trân",
+    "diem_trinh", "mai_linh", "mai_loan", "my_yen", "ngoc_huyen", "thuc_trinh", "storyvert",
+    "NF", "SF"
+}
+
+def get_fallback_voice(req_voice: str) -> str:
+    if req_voice in FEMALE_VOICES:
+        return "Trúc Ly"
+    return "Minh Đức"
 
 # Extract speech/display text helpers (for backward compatibility if needed)
 def extract_speech_text(text: str) -> str:
@@ -354,6 +372,7 @@ async def main_async():
     parser.add_argument("--style", default="tin_tuc", choices=["tu_nhien", "tin_tuc", "doc_truyen"])
     parser.add_argument("--precision", default="int8", choices=["int8", "fp32"])
     parser.add_argument("--ffmpeg-path", default="ffmpeg")
+    parser.add_argument("--vtts-voice", default="NF")
     args = parser.parse_args()
 
     manifest = json.loads(Path(args.manifest).read_text(encoding="utf-8"))
@@ -364,6 +383,7 @@ async def main_async():
     drk_api_key = manifest.get("drkApiKey", "")
     elevenlabs_api_key = manifest.get("elevenlabsApiKey", "")
     kokoro_voice = manifest.get("kokoroVoice", "diem_trinh")
+    vtts_voice = manifest.get("vttsVoice") or args.vtts_voice or "NF"
     default_lang = manifest.get("bracketLang", "none")
     ja_voice = manifest.get("jaVoice", "ja-JP-NanamiNeural")
     en_voice = manifest.get("enVoice", "en-US-AriaNeural")
@@ -392,6 +412,23 @@ async def main_async():
             kokoro_engine = KokoroVietnamese(device="cpu", voice=kokoro_voice)
         return kokoro_engine
 
+    vtts_engine = None
+    def get_vtts():
+        nonlocal vtts_engine
+        if vtts_engine is None:
+            print(f"[render] Initializing v-tts Multi-Speaker engine ({vtts_voice})...")
+            import sys
+            vtts_dir = Path(__file__).parent.parent / "local-tts" / "v-tts"
+            if str(vtts_dir) not in sys.path:
+                sys.path.insert(0, str(vtts_dir))
+            from infer import VietnameseTTS
+            local_appdata = os.environ.get("LOCALAPPDATA", "")
+            ckpt_dir = Path(local_appdata) / "v_tts" / "models" / "vits-vietnamese"
+            ckpt_path = ckpt_dir / "G.pth"
+            config_path = ckpt_dir / "config.json"
+            vtts_engine = VietnameseTTS(checkpoint_path=str(ckpt_path), config_path=str(config_path), device="cpu")
+        return vtts_engine
+
     def gen_local_vi(seg_text, seg_wav_path):
         if provider_name == "drk_api" or engine_name == "drk_api":
             print(f"[render]  └─ Synthesizing via DinhrinMKT API ({drk_model_id} / {drk_voice_id})...")
@@ -406,9 +443,23 @@ async def main_async():
                 audio, _ = k_engine.synthesize(seg_text)
                 sf.write(str(seg_wav_path), audio, 24000)
             except Exception as e:
-                print(f"[render warn] Kokoro TTS not available ({e}), falling back to VieNeu-TTS...")
+                fb_v = get_fallback_voice(kokoro_voice)
+                print(f"[render warn] Kokoro TTS not available ({e}), falling back to VieNeu-TTS ({fb_v})...")
                 v_engine = get_vieneu()
-                audio = v_engine.infer(seg_text, voice="Minh Đức", style="tu_nhien")
+                audio = v_engine.infer(seg_text, voice=fb_v, style="tu_nhien")
+                v_engine.save(audio, str(seg_wav_path))
+        elif engine_name == "vtts":
+            try:
+                import soundfile as sf
+                vt_engine = get_vtts()
+                spk = manifest.get("vttsVoice") or args.vtts_voice or "NF"
+                audio, sr = vt_engine.synthesize(seg_text, speaker=spk)
+                sf.write(str(seg_wav_path), audio, sr)
+            except Exception as e:
+                fb_v = get_fallback_voice(vtts_voice)
+                print(f"[render warn] v-tts Multi-Speaker failed ({e}), falling back to VieNeu-TTS ({fb_v})...")
+                v_engine = get_vieneu()
+                audio = v_engine.infer(seg_text, voice=fb_v, style="tu_nhien")
                 v_engine.save(audio, str(seg_wav_path))
         else:
             v_engine = get_vieneu()

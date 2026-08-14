@@ -130,9 +130,13 @@ async function main() {
   const engine = manifest.engine || "vieneu";
   const voice = manifest.voice || cliArgs.voice || "Minh Đức";
   const kokoroVoice = manifest.kokoroVoice || "diem_trinh";
+  const vttsVoice = manifest.vttsVoice || "NF";
   const style = manifest.style || cliArgs.style || "tin_tuc";
 
-  const voiceDisplay = engine === "kokoro" ? `Kokoro (${kokoroVoice})` : `VieNeu (${voice} · ${style})`;
+  let voiceDisplay = `VieNeu (${voice} · ${style})`;
+  if (engine === "kokoro") voiceDisplay = `Kokoro (${kokoroVoice})`;
+  else if (engine === "vtts") voiceDisplay = `v-tts (${vttsVoice})`;
+
   console.log(`[render] Engine: ${engine} · Voice: ${voiceDisplay} · Scenes: ${manifest.scenes.length}`);
   console.log("[PROGRESS:5]");
 
@@ -149,6 +153,7 @@ async function main() {
     "--out-dir", audioDir,
     "--voice", voice,
     "--style", style,
+    "--vtts-voice", vttsVoice,
     "--ffmpeg-path", ffmpegPath
   ];
 
@@ -156,7 +161,7 @@ async function main() {
     ? [scriptPath, ...scriptArgs]
     : ["run", "--project", cwdDir, "python", scriptPath, ...scriptArgs];
 
-  run(cmd, spawnArgs, cwdDir, { PYTHONIOENCODING: "utf-8", NLTK_DISABLE_IMPORT_SECURITY: "1" });
+  run(cmd, spawnArgs, cwdDir, { PYTHONIOENCODING: "utf-8", NLTK_DISABLE_IMPORT_SECURITY: "1", HF_HOME: path.join(cwdDir, ".cache") });
 
   console.log("[PROGRESS:40]");
 

@@ -77,14 +77,15 @@ function updateVoiceDropdown() {
   if (!els.ttsEngineSelect) return;
   const engine = els.ttsEngineSelect.value;
   const isKokoro = engine === "kokoro";
+  const isVtts = engine === "vtts";
 
   if (els.kokoroVoiceLabel) els.kokoroVoiceLabel.hidden = !isKokoro;
-  if (els.vieneuVoiceLabel) els.vieneuVoiceLabel.hidden = isKokoro;
+  if (els.vieneuVoiceLabel) els.vieneuVoiceLabel.hidden = (isKokoro || isVtts);
   if (els.vieneuStyleLabel) {
-    els.vieneuStyleLabel.hidden = isKokoro;
+    els.vieneuStyleLabel.hidden = (isKokoro || isVtts);
   } else if (els.styleSelect) {
     const styleLabel = els.styleSelect.closest(".field-label");
-    if (styleLabel) styleLabel.hidden = isKokoro;
+    if (styleLabel) styleLabel.hidden = (isKokoro || isVtts);
   }
 }
 
@@ -291,6 +292,11 @@ function renderSceneOverrideBar() {
 function render() {
   const list = scenes();
 
+  state.poses = list.map((text, i) => state.poses[i] || defaultPose(i, text));
+  state.sceneOverrides = list.map((_, i) => state.sceneOverrides[i] || { isCustom: false, leftTerm: "", rightTerm: "", leftImage: "", rightImage: "" });
+  if (state.sceneIndex >= list.length) state.sceneIndex = Math.max(0, list.length - 1);
+  if (state.activeScopeIndex >= list.length) state.activeScopeIndex = -1;
+
   // Sync inputs with active scope configuration
   const currentConfig = state.activeScopeIndex === -1
     ? {
@@ -336,11 +342,6 @@ function render() {
       phoneEl.style.backgroundImage = "";
     }
   }
-
-  state.poses = list.map((text, i) => state.poses[i] || defaultPose(i, text));
-  state.sceneOverrides = list.map((_, i) => state.sceneOverrides[i] || { isCustom: false, leftTerm: "", rightTerm: "", leftImage: "", rightImage: "" });
-  if (state.sceneIndex >= list.length) state.sceneIndex = Math.max(0, list.length - 1);
-  if (state.activeScopeIndex >= list.length) state.activeScopeIndex = -1;
 
   const text = list[state.sceneIndex] || "";
   const pose = state.poses[state.sceneIndex] || "point-left";
@@ -480,22 +481,153 @@ function renderScenes(list) {
 }
 
 function renderTimeline(list) {
-  els.timeline.innerHTML = "";
-  list.forEach((text, i) => {
-    const clip = document.createElement("button");
-    clip.type = "button";
-    clip.className = `clip ${i === state.sceneIndex ? "active" : ""}`;
-    clip.style.flex = `${estimate(text)} 1 0`;
-    clip.textContent = i + 1;
-    clip.addEventListener("click", () => {
-      state.sceneIndex = i;
-      state.activeScopeIndex = i;
-      state.wordIndex = 0;
-      render();
+  if (els.timeline) {
+    els.timeline.innerHTML = "";
+    list.forEach((text, i) => {
+      const clip = document.createElement("button");
+      clip.type = "button";
+      clip.className = `clip ${i === state.sceneIndex ? "active" : ""}`;
+      clip.style.flex = `${estimate(text)} 1 0`;
+      clip.textContent = i + 1;
+      clip.addEventListener("click", () => {
+        state.sceneIndex = i;
+        state.activeScopeIndex = i;
+        state.wordIndex = 0;
+        render();
+      });
+      els.timeline.append(clip);
     });
-    els.timeline.append(clip);
-  });
+  }
+
+  if (window.timelineManager && typeof window.timelineManager.renderTimeline === "function") {
+    const timelineData = window.getTimelineScenes ? window.getTimelineScenes() : [];
+    window.timelineManager.selectedSceneIndex = state.sceneIndex;
+    window.timelineManager.renderTimeline(timelineData);
+  }
 }
+
+window.getTimelineScenes = function() {
+  const list = scenes();
+  return list.map((text, i) => {
+    const data = getEffectiveSceneData(i);
+    const estDur = (state.sceneOverrides[i] && state.sceneOverrides[i].duration)
+      ? state.sceneOverrides[i].duration
+      : estimate(text);
+    return {
+      text,
+      duration: estDur,
+      leftImage: data.leftImage,
+      rightImage: data.rightImage,
+      leftTerm: data.leftTerm,
+      rightTerm: data.rightTerm
+    };
+  });
+};
+
+window.onTimelineSeek = function(sec) {
+  const list = scenes();
+  let accum = 0;
+  let targetScene = 0;
+  for (let i = 0; i < list.length; i++) {
+    const dur = (state.sceneOverrides[i] && state.sceneOverrides[i].duration) || estimate(list[i]);
+    if (sec >= accum && sec < accum + dur) {
+      targetScene = i;
+      break;
+    }
+    accum += dur;
+  }
+  state.sceneIndex = targetScene;
+  state.activeScopeIndex = targetScene;
+  render();
+};
+
+window.onSceneSelected = function(index) {
+  state.sceneIndex = index;
+  state.activeScopeIndex = index;
+  state.wordIndex = 0;
+  render();
+};
+
+window.updateSceneDuration = function(index, duration) {
+  if (!state.sceneOverrides[index]) {
+    state.sceneOverrides[index] = { isCustom: true };
+  }
+  state.sceneOverrides[index].duration = duration;
+  state.sceneOverrides[index].isCustom = true;
+  render();
+};
+
+window.splitSceneAtTime = function(sec) {
+  const list = scenes();
+  let accum = 0;
+  let splitSceneIndex = -1;
+  for (let i = 0; i < list.length; i++) {
+    const dur = (state.sceneOverrides[i] && state.sceneOverrides[i].duration) || estimate(list[i]);
+    if (sec >= accum && sec < accum + dur) {
+      splitSceneIndex = i;
+      break;
+    }
+    accum += dur;
+  }
+  if (splitSceneIndex < 0) return;
+
+  const fullText = list[splitSceneIndex];
+  const { displayText } = parsePhoneticText(fullText);
+  const words = displayText.split(/\s+/).filter(Boolean);
+  if (words.length <= 1) {
+    showToast("⚠️ Cảnh quá ngắn để cắt");
+    return;
+  }
+
+  const half = Math.ceil(words.length / 2);
+  const part1 = words.slice(0, half).join(" ");
+  const part2 = words.slice(half).join(" ");
+
+  list[splitSceneIndex] = part1;
+  list.splice(splitSceneIndex + 1, 0, part2);
+  els.scriptInput.value = list.join("\n");
+  state.sceneIndex = splitSceneIndex;
+  render();
+  showToast(`✂️ Đã cắt Cảnh ${splitSceneIndex + 1} thành 2 phân cảnh`);
+};
+
+window.deleteScene = function(index) {
+  const list = scenes();
+  if (list.length <= 1) {
+    showToast("⚠️ Phải giữ lại ít nhất 1 cảnh trong kịch bản");
+    return;
+  }
+  list.splice(index, 1);
+  state.sceneOverrides.splice(index, 1);
+  state.poses.splice(index, 1);
+  els.scriptInput.value = list.join("\n");
+  state.sceneIndex = Math.max(0, index - 1);
+  render();
+  showToast(`🗑️ Đã xóa Cảnh ${index + 1}`);
+};
+
+window.duplicateScene = function(index) {
+  const list = scenes();
+  if (!list[index]) return;
+  const dupText = list[index];
+  list.splice(index + 1, 0, dupText);
+  if (state.sceneOverrides[index]) {
+    state.sceneOverrides.splice(index + 1, 0, { ...state.sceneOverrides[index] });
+  }
+  els.scriptInput.value = list.join("\n");
+  state.sceneIndex = index + 1;
+  render();
+  showToast(`📋 Đã nhân bản Cảnh ${index + 1}`);
+};
+
+window.addNewScene = function() {
+  const list = scenes();
+  list.push("Nhập nội dung cho cảnh mới ở đây.");
+  els.scriptInput.value = list.join("\n");
+  state.sceneIndex = list.length - 1;
+  render();
+  showToast("➕ Đã thêm cảnh mới");
+};
 
 function tick() {
   const list = scenes();
@@ -863,6 +995,7 @@ function buildRenderConfig() {
       : (els.voiceSelect ? els.voiceSelect.value : "Minh Đức")),
     elevenlabsApiKey: keys.elevenlabs || "",
     kokoroVoice: els.kokoroVoiceSelect ? els.kokoroVoiceSelect.value : "diem_trinh",
+    vttsVoice: (document.getElementById("vttsVoiceSelect") ? document.getElementById("vttsVoiceSelect").value : "NF"),
     style: els.styleSelect.value,
     highlight: els.highlightMode.value,
     fontSize: els.fontSizeInput ? (parseInt(els.fontSizeInput.value, 10) || 40) : 40,
@@ -1477,6 +1610,14 @@ const KOKORO_VOICES_DATA = [
   { value: "duc_duy", name: "Đức Duy", gender: "Nam", accent: "Kokoro", style: "Sôi nổi" },
 ];
 
+const VTTS_VOICES_DATA = [
+  { value: "NF", name: "Nữ Miền Bắc (NF)", gender: "Nữ", accent: "v-tts", style: "Chuẩn" },
+  { value: "SF", name: "Nữ Miền Nam (SF)", gender: "Nữ", accent: "v-tts", style: "Chuẩn" },
+  { value: "NM1", name: "Nam Miền Bắc 1 (NM1)", gender: "Nam", accent: "v-tts", style: "Chuẩn" },
+  { value: "SM", name: "Nam Miền Nam (SM)", gender: "Nam", accent: "v-tts", style: "Chuẩn" },
+  { value: "NM2", name: "Nam Miền Bắc 2 (NM2)", gender: "Nam", accent: "v-tts", style: "Nhẹ" },
+];
+
 let localCardPreviewAudio = null;
 let localCardPlayingBtn = null;
 
@@ -1497,25 +1638,47 @@ function initLocalVoiceSwitcher() {
   const styleSel = els.styleSelect;
   const vieneuVoiceSel = els.voiceSelect;
   const kokoroVoiceSel = els.kokoroVoiceSelect;
+  const vttsVoiceSel = document.getElementById("vttsVoiceSelect");
   const listContainer = document.getElementById("localVoiceList");
 
   if (!engineSel || !listContainer) return;
+
+  const savedEngine = localStorage.getItem("riki:settings:tts-engine") || "vieneu";
+  engineSel.value = savedEngine;
+
+  engineSel.addEventListener("change", () => {
+    localStorage.setItem("riki:settings:tts-engine", engineSel.value);
+    renderLocalVoiceCards();
+  });
 
   function renderLocalVoiceCards() {
     stopLocalCardPreview();
     const engine = engineSel.value;
     const isKokoro = engine === "kokoro";
+    const isVtts = engine === "vtts";
 
     if (els.vieneuStyleLabel) {
-      els.vieneuStyleLabel.hidden = isKokoro;
+      els.vieneuStyleLabel.hidden = (isKokoro || isVtts);
     }
 
-    const voiceList = isKokoro ? KOKORO_VOICES_DATA : VIENEU_VOICES_DATA;
-    const currentVoiceSel = isKokoro ? kokoroVoiceSel : vieneuVoiceSel;
-    const storageKey = isKokoro ? "riki:settings:kokoro-voice" : "riki:settings:voice";
-    const defaultVal = isKokoro ? "diem_trinh" : "Minh Đức";
-    const selectedVoice = localStorage.getItem(storageKey) || (currentVoiceSel ? currentVoiceSel.value : defaultVal);
+    let voiceList = VIENEU_VOICES_DATA;
+    let currentVoiceSel = vieneuVoiceSel;
+    let storageKey = "riki:settings:voice";
+    let defaultVal = "Minh Đức";
 
+    if (isKokoro) {
+      voiceList = KOKORO_VOICES_DATA;
+      currentVoiceSel = kokoroVoiceSel;
+      storageKey = "riki:settings:kokoro-voice";
+      defaultVal = "diem_trinh";
+    } else if (isVtts) {
+      voiceList = VTTS_VOICES_DATA;
+      currentVoiceSel = vttsVoiceSel;
+      storageKey = "riki:settings:vtts-voice";
+      defaultVal = "NF";
+    }
+
+    const selectedVoice = localStorage.getItem(storageKey) || (currentVoiceSel ? currentVoiceSel.value : defaultVal);
     if (currentVoiceSel) currentVoiceSel.value = selectedVoice;
 
     listContainer.innerHTML = "";
@@ -1569,7 +1732,7 @@ function initLocalVoiceSwitcher() {
         `;
 
         try {
-          const PREVIEW_TEXT = "Xin chào! Đây là giọng đọc thử nghiệm VieNeu xưởng giọng đọc local.";
+          const PREVIEW_TEXT = "Xin chào! Đây là giọng đọc thử nghiệm xưởng giọng đọc local.";
           const style = styleSel ? styleSel.value : "tu_nhien";
           const speechRate = els.speechRateSelect ? parseFloat(els.speechRateSelect.value) || 1.0 : 1.0;
 
@@ -1577,6 +1740,7 @@ function initLocalVoiceSwitcher() {
             engine,
             voice: isKokoro ? "Minh Đức" : v.value,
             kokoroVoice: isKokoro ? v.value : "diem_trinh",
+            vttsVoice: isVtts ? v.value : "NF",
             style,
             text: PREVIEW_TEXT,
             speechRate

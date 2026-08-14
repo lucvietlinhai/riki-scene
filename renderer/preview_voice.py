@@ -1,10 +1,28 @@
 import argparse
+import os
 import re
 from pathlib import Path
 import wave
 import asyncio
 import tempfile
 import shutil
+
+# Redirect HuggingFace cache to local-tts/.cache on D: drive to prevent disk full error on C:
+if "HF_HOME" not in os.environ:
+    cache_dir = Path(__file__).parent.parent / "local-tts" / ".cache"
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    os.environ["HF_HOME"] = str(cache_dir)
+
+FEMALE_VOICES = {
+    "Trúc Ly", "Ngọc Linh", "Đoan Trang", "Mai Anh", "Thục Đoan", "Thùy Dung", "Ngọc Trân",
+    "diem_trinh", "mai_linh", "mai_loan", "my_yen", "ngoc_huyen", "thuc_trinh", "storyvert",
+    "NF", "SF"
+}
+
+def get_fallback_voice(req_voice: str) -> str:
+    if req_voice in FEMALE_VOICES:
+        return "Trúc Ly"
+    return "Minh Đức"
 
 def partition_text(text: str, default_lang: str = "none"):
     if not text:
@@ -238,14 +256,15 @@ def concatenate_wavs(wav_paths, output_path):
             w.writeframes(d)
 
 async def main_async():
-    parser = argparse.ArgumentParser(description="Preview TTS Voice (VieNeu / Kokoro / DinhrinMKT).")
-    parser.add_argument("--engine", default="vieneu", choices=["vieneu", "kokoro", "drk_api"])
+    parser = argparse.ArgumentParser(description="Preview TTS Voice (VieNeu / Kokoro / v-tts / DinhrinMKT).")
+    parser.add_argument("--engine", default="vieneu", choices=["vieneu", "kokoro", "vtts", "drk_api"])
     parser.add_argument("--provider", default="local")
     parser.add_argument("--model-id", default="capcut_free")
     parser.add_argument("--voice-id", default="")
     parser.add_argument("--drk-api-key", default="")
     parser.add_argument("--voice", default="Minh Đức")
     parser.add_argument("--kokoro-voice", default="diem_trinh")
+    parser.add_argument("--vtts-voice", default="NF")
     parser.add_argument("--style", default="tin_tuc")
     parser.add_argument("--text", default="Xin chào, đây là giọng đọc thử nghiệm.")
     parser.add_argument("--out-wav", required=True)
@@ -278,6 +297,21 @@ async def main_async():
     temp_dir = Path(tempfile.mkdtemp())
     vieneu_ref = [None]
     kokoro_ref = [None]
+    vtts_ref = [None]
+
+    def get_vtts():
+        if vtts_ref[0] is None:
+            import sys
+            vtts_dir = Path(__file__).parent.parent / "local-tts" / "v-tts"
+            if str(vtts_dir) not in sys.path:
+                sys.path.insert(0, str(vtts_dir))
+            from infer import VietnameseTTS
+            local_appdata = os.environ.get("LOCALAPPDATA", "")
+            ckpt_dir = Path(local_appdata) / "v_tts" / "models" / "vits-vietnamese"
+            ckpt_path = ckpt_dir / "G.pth"
+            config_path = ckpt_dir / "config.json"
+            vtts_ref[0] = VietnameseTTS(checkpoint_path=str(ckpt_path), config_path=str(config_path), device="cpu")
+        return vtts_ref[0]
 
     def gen_vi(txt, dest_path):
         if args.engine == "kokoro":
@@ -289,11 +323,27 @@ async def main_async():
                 audio, _ = kokoro_ref[0].synthesize(txt)
                 sf.write(str(dest_path), audio, 24000)
             except Exception as e:
-                print(f"[warn] Kokoro TTS not available ({e}), falling back to VieNeu-TTS...")
+                fb_v = get_fallback_voice(args.kokoro_voice)
+                print(f"[warn] Kokoro TTS not available ({e}), falling back to VieNeu-TTS ({fb_v})...")
                 if vieneu_ref[0] is None:
                     from vieneu import Vieneu
                     vieneu_ref[0] = Vieneu(backend="onnx", precision="int8")
-                audio = vieneu_ref[0].infer(txt, voice="Minh Đức", style="tu_nhien")
+                audio = vieneu_ref[0].infer(txt, voice=fb_v, style="tu_nhien")
+                vieneu_ref[0].save(audio, str(dest_path))
+        elif args.engine == "vtts":
+            try:
+                import soundfile as sf
+                vt_engine = get_vtts()
+                spk = args.vtts_voice or "NF"
+                audio, sr = vt_engine.synthesize(txt, speaker=spk)
+                sf.write(str(dest_path), audio, sr)
+            except Exception as e:
+                fb_v = get_fallback_voice(args.vtts_voice)
+                print(f"[warn] v-tts Multi-Speaker failed ({e}), falling back to VieNeu-TTS ({fb_v})...")
+                if vieneu_ref[0] is None:
+                    from vieneu import Vieneu
+                    vieneu_ref[0] = Vieneu(backend="onnx", precision="int8")
+                audio = vieneu_ref[0].infer(txt, voice=fb_v, style="tu_nhien")
                 vieneu_ref[0].save(audio, str(dest_path))
         else:
             if vieneu_ref[0] is None:

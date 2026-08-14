@@ -8,3 +8,6 @@ __pycache__/
 *.py[cod]
 test_frame.png
 bin/
+local-tts/.cache/
+local-tts/v-tts/
+*.wav

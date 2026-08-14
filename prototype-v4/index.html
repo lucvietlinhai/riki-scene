@@ -380,6 +380,7 @@
                 <select id="ttsEngineSelect">
                   <option value="vieneu" selected>VieNeu-TTS · ONNX CPU</option>
                   <option value="kokoro">Kokoro-Vietnamese · ONNX CPU</option>
+                  <option value="vtts">v-tts · Multi-Speaker (74M)</option>
                 </select>
               </label>
               <label class="field-label" id="vieneuStyleLabel">Phong cách
@@ -424,6 +425,14 @@
               <option value="storyvert">Storyvert</option>
               <option value="duc_an">Đức An</option>
               <option value="duc_duy">Đức Duy</option>
+            </select>
+
+            <select id="vttsVoiceSelect" style="display: none;">
+              <option value="NF" selected>Nữ Miền Bắc (NF)</option>
+              <option value="SF">Nữ Miền Nam (SF)</option>
+              <option value="NM1">Nam Miền Bắc 1 (NM1)</option>
+              <option value="SM">Nam Miền Nam (SM)</option>
+              <option value="NM2">Nam Miền Bắc 2 (NM2)</option>
             </select>
 
             <!-- Voice Grid Container for Local TTS -->
@@ -1009,6 +1018,101 @@ Khi so sánh hai khái niệm, hãy nhìn vào điểm khác nhau trong cách đ
   </div>
 
 <div class="toast" id="toast"></div>
+
+  <!-- ==================== MULTI-TRACK TIMELINE EDITOR SECTION ==================== -->
+  <section class="timeline-editor" id="timelineEditorSection">
+    <div class="timeline-editor__toolbar">
+      <div class="timeline-toolbar__group">
+        <button type="button" class="timeline-btn" id="tlSplitBtn" title="Cắt phân cảnh tại kim thời gian (Split ✂️)">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><line x1="20" y1="4" x2="8.12" y2="15.88"/><line x1="14.47" y1="14.48" x2="20" y2="20"/><line x1="8.12" y1="8.12" x2="12" y2="12"/></svg>
+          <span>Cắt ✂️</span>
+        </button>
+        <button type="button" class="timeline-btn" id="tlDeleteBtn" title="Xóa phân cảnh đang chọn (Delete 🗑️)">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+          <span>Xóa 🗑️</span>
+        </button>
+        <button type="button" class="timeline-btn" id="tlDuplicateBtn" title="Nhân bản cảnh đang chọn">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+          <span>Nhân bản</span>
+        </button>
+        <button type="button" class="timeline-btn" id="tlAddSceneBtn" title="Thêm cảnh mới">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          <span>Thêm cảnh</span>
+        </button>
+      </div>
+
+      <div class="timeline-toolbar__group timeline-toolbar__group--center">
+        <button type="button" class="timeline-btn timeline-btn--icon" id="tlStepBackBtn" title="Lùi 1s">⏮️</button>
+        <button type="button" class="timeline-btn timeline-btn--play" id="tlPlayPauseBtn" title="Phát/Tạm dừng">▶️</button>
+        <button type="button" class="timeline-btn timeline-btn--icon" id="tlStepFwdBtn" title="Tiến 1s">⏭️</button>
+        <span class="timeline-timecode" id="tlTimecodeDisplay">00:00.00 / 00:00.00</span>
+      </div>
+
+      <div class="timeline-toolbar__group timeline-toolbar__group--right">
+        <span class="timeline-zoom-label">🔍 Zoom:</span>
+        <input type="range" id="tlZoomSlider" min="20" max="200" value="60" step="5" class="timeline-zoom-range" title="Điều chỉnh tỉ lệ thu phóng Timeline" />
+        <button type="button" class="timeline-btn timeline-btn--toggle" id="tlCollapseBtn" title="Ẩn/Hiện Timeline">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <div class="timeline-editor__body" id="tlBody">
+      <!-- Left track controls panel -->
+      <div class="timeline-track-headers">
+        <div class="track-header track-header--ruler">
+          <span>🎞️ Tracks</span>
+        </div>
+        <div class="track-header">
+          <span class="track-header__icon">🎥</span>
+          <span class="track-header__title">Video 1</span>
+          <div class="track-header__actions">
+            <button class="btn-track-action" title="Ẩn/Hiện Track">👁️</button>
+            <button class="btn-track-action" title="Khóa Track">🔒</button>
+          </div>
+        </div>
+        <div class="track-header">
+          <span class="track-header__icon">🎙️</span>
+          <span class="track-header__title">Audio 1</span>
+          <div class="track-header__actions">
+            <button class="btn-track-action" title="Tắt tiếng Track">🔊</button>
+            <button class="btn-track-action" title="Khóa Track">🔒</button>
+          </div>
+        </div>
+        <div class="track-header">
+          <span class="track-header__icon">🔤</span>
+          <span class="track-header__title">Text 1</span>
+          <div class="track-header__actions">
+            <button class="btn-track-action" title="Ẩn/Hiện Subtitle">👁️</button>
+            <button class="btn-track-action" title="Khóa Track">🔒</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Main timeline scrollable container -->
+      <div class="timeline-tracks-viewport" id="tlTracksViewport">
+        <!-- Playhead red line needle -->
+        <div class="timeline-playhead" id="tlPlayhead">
+          <div class="timeline-playhead__head">✂️</div>
+          <div class="timeline-playhead__line"></div>
+        </div>
+
+        <!-- Time Ruler Track -->
+        <div class="timeline-ruler" id="tlRuler"></div>
+
+        <!-- Track 1: Video/Scene Blocks -->
+        <div class="timeline-track timeline-track--video" id="tlVideoTrack"></div>
+
+        <!-- Track 2: Audio/Waveform Blocks -->
+        <div class="timeline-track timeline-track--audio" id="tlAudioTrack"></div>
+
+        <!-- Track 3: Subtitle/Text Blocks -->
+        <div class="timeline-track timeline-track--text" id="tlTextTrack"></div>
+      </div>
+    </div>
+  </section>
+
+  <script src="./timeline-manager.js"></script>
   <script src="./app.js"></script>
 </body>
 

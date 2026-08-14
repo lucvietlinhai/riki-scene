@@ -100,7 +100,7 @@ ipcMain.handle("voice:fetch-drk-voices", async (_event, { modelId, apiKey }) => 
   }
 });
 
-ipcMain.handle("voice:preview", async (_event, { engine, voice, kokoroVoice, style, text, bracketLang, jaVoice, enVoice, zhVoice, speechRate, foreignSpeechRate, provider, modelId, voiceId, drkApiKey }) => {
+ipcMain.handle("voice:preview", async (_event, { engine, voice, kokoroVoice, vttsVoice, style, text, bracketLang, jaVoice, enVoice, zhVoice, speechRate, foreignSpeechRate, provider, modelId, voiceId, drkApiKey }) => {
   const sampleText = text || `Xin chào, đây là giọng đọc thử nghiệm!`;
 
   if (provider === "drk_api" || engine === "drk_api") {
@@ -131,6 +131,7 @@ ipcMain.handle("voice:preview", async (_event, { engine, voice, kokoroVoice, sty
     "--engine", engine || "vieneu",
     "--voice", voice || "Minh Đức",
     "--kokoro-voice", kokoroVoice || "diem_trinh",
+    "--vtts-voice", vttsVoice || "NF",
     "--style", style || "tin_tuc",
     "--text", sampleText,
     "--out-wav", outWav,
@@ -154,7 +155,7 @@ ipcMain.handle("voice:preview", async (_event, { engine, voice, kokoroVoice, sty
   return new Promise((resolve, reject) => {
     const child = spawn(runner.bin, spawnArgs, {
       cwd: cwdDir,
-      env: { ...process.env, PYTHONIOENCODING: "utf-8", NLTK_DISABLE_IMPORT_SECURITY: "1" }
+      env: { ...process.env, PYTHONIOENCODING: "utf-8", NLTK_DISABLE_IMPORT_SECURITY: "1", HF_HOME: path.join(RESOURCES_DIR, "local-tts", ".cache") }
     });
 
     child.on("close", (code) => {
