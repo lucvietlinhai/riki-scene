@@ -9,11 +9,21 @@ class TimelineManager {
     this.currentTime = 0; // Current playhead time in seconds
     this.totalDuration = 0;
     this.selectedSceneIndex = 0;
+
+    // Playhead & Resize state
     this.isDraggingPlayhead = false;
     this.isResizingScene = false;
     this.resizingSceneIndex = -1;
     this.resizeStartX = 0;
     this.resizeStartDuration = 0;
+
+    // Block Drag & Drop reorder state
+    this.pendingDragSceneIndex = -1;
+    this.isBlockDragging = false;
+    this.dragStartX = 0;
+    this.dragStartY = 0;
+    this.targetDropIndex = -1;
+    this.currentScenes = [];
 
     this.initElements();
     this.bindEvents();
@@ -50,7 +60,25 @@ class TimelineManager {
       });
     }
 
-    // Playhead drag
+    // Ctrl + Scroll Wheel Zoom on Timeline
+    const handleWheelZoom = (e) => {
+      if (e.ctrlKey || e.metaKey) {
+        e.preventDefault();
+        const zoomFactor = e.deltaY < 0 ? 1.15 : 0.85;
+        const newPxPerSec = Math.max(20, Math.min(200, Math.round(this.pxPerSec * zoomFactor)));
+        if (newPxPerSec !== this.pxPerSec) {
+          this.pxPerSec = newPxPerSec;
+          if (this.zoomSlider) this.zoomSlider.value = this.pxPerSec;
+          this.renderTimeline();
+        }
+      }
+    };
+    this.viewport.addEventListener("wheel", handleWheelZoom, { passive: false });
+    if (this.section) {
+      this.section.addEventListener("wheel", handleWheelZoom, { passive: false });
+    }
+
+    // Playhead drag & Viewport click
     if (this.playhead) {
       this.playhead.addEventListener("mousedown", (e) => {
         e.stopPropagation();
@@ -59,45 +87,167 @@ class TimelineManager {
       });
     }
 
-    // Viewport click/drag to position playhead
     this.viewport.addEventListener("mousedown", (e) => {
       if (e.target.closest(".scene-block__handle")) return;
-      const rect = this.viewport.getBoundingClientRect();
-      const clickX = e.clientX - rect.left + this.viewport.scrollLeft;
-      const time = Math.max(0, clickX / this.pxPerSec);
-      this.seekTo(time);
 
-      if (e.target.closest("#tlRuler") || e.target === this.viewport) {
+      const blockEl = e.target.closest(".scene-block");
+      if (!blockEl && (e.target.closest("#tlRuler") || e.target === this.viewport || e.target.classList.contains("timeline-track"))) {
+        const rect = this.viewport.getBoundingClientRect();
+        const clickX = e.clientX - rect.left + this.viewport.scrollLeft;
+        const time = Math.max(0, clickX / this.pxPerSec);
+        this.seekTo(time);
         this.isDraggingPlayhead = true;
       }
     });
 
     document.addEventListener("mousemove", (e) => {
+      // 1. Playhead drag
       if (this.isDraggingPlayhead) {
         const rect = this.viewport.getBoundingClientRect();
         const clickX = e.clientX - rect.left + this.viewport.scrollLeft;
         const time = Math.max(0, clickX / this.pxPerSec);
         this.seekTo(time);
-      } else if (this.isResizingScene && this.resizingSceneIndex >= 0) {
+      } 
+      // 2. Scene duration resize
+      else if (this.isResizingScene && this.resizingSceneIndex >= 0) {
         const deltaX = e.clientX - this.resizeStartX;
         const deltaSec = deltaX / this.pxPerSec;
         const newDur = Math.max(1, Math.round((this.resizeStartDuration + deltaSec) * 10) / 10);
-        
-        if (typeof window.updateSceneDuration === "function") {
-          window.updateSceneDuration(this.resizingSceneIndex, newDur);
+        const block = this.videoTrack ? this.videoTrack.querySelector(`.scene-block--video[data-scene-index="${this.resizingSceneIndex}"]`) : null;
+        if (block) {
+          block.style.width = `${newDur * this.pxPerSec}px`;
+          const titleEl = block.querySelector(".scene-block__title");
+          if (titleEl) {
+            titleEl.textContent = `Cảnh ${this.resizingSceneIndex + 1} (${newDur}s)`;
+          }
+        }
+      }
+      // 3. Block Drag & Drop reorder
+      else if (this.pendingDragSceneIndex >= 0) {
+        const dx = e.clientX - this.dragStartX;
+        const dy = e.clientY - this.dragStartY;
+        if (!this.isBlockDragging && Math.hypot(dx, dy) > 8) {
+          this.isBlockDragging = true;
+          document.body.style.cursor = "grabbing";
+          const dragBlocks = this.viewport.querySelectorAll(`.scene-block[data-scene-index="${this.pendingDragSceneIndex}"]`);
+          dragBlocks.forEach(b => b.classList.add("is-dragging"));
+        }
+
+        if (this.isBlockDragging) {
+          const rect = this.viewport.getBoundingClientRect();
+          const mouseX = e.clientX - rect.left + this.viewport.scrollLeft;
+          const mouseSec = mouseX / this.pxPerSec;
+
+          let targetIdx = -1;
+          if (this.currentScenes && this.currentScenes.length > 0) {
+            for (let i = 0; i < this.currentScenes.length; i++) {
+              const sc = this.currentScenes[i];
+              if (mouseSec >= sc.start && mouseSec <= sc.end) {
+                targetIdx = i;
+                break;
+              }
+            }
+            if (targetIdx < 0) {
+              if (mouseSec < 0) targetIdx = 0;
+              else if (mouseSec > this.totalDuration) targetIdx = this.currentScenes.length - 1;
+            }
+          }
+
+          this.targetDropIndex = targetIdx;
+
+          const allBlocks = this.viewport.querySelectorAll(".scene-block");
+          allBlocks.forEach(b => b.classList.remove("drop-target-before", "drop-target-after"));
+
+          if (targetIdx >= 0 && targetIdx !== this.pendingDragSceneIndex) {
+            const targetBlocks = this.viewport.querySelectorAll(`.scene-block[data-scene-index="${targetIdx}"]`);
+            targetBlocks.forEach(b => {
+              if (targetIdx < this.pendingDragSceneIndex) {
+                b.classList.add("drop-target-before");
+              } else {
+                b.classList.add("drop-target-after");
+              }
+            });
+          }
         }
       }
     });
 
-    document.addEventListener("mouseup", () => {
+    document.addEventListener("mouseup", (e) => {
       if (this.isDraggingPlayhead) {
         this.isDraggingPlayhead = false;
         document.body.style.cursor = "";
       }
-      if (this.isResizingScene) {
+      if (this.isResizingScene && this.resizingSceneIndex >= 0) {
+        const deltaX = e.clientX - this.resizeStartX;
+        const deltaSec = deltaX / this.pxPerSec;
+        const newDur = Math.max(1, Math.round((this.resizeStartDuration + deltaSec) * 10) / 10);
+        const idx = this.resizingSceneIndex;
         this.isResizingScene = false;
         this.resizingSceneIndex = -1;
         document.body.style.cursor = "";
+        if (typeof window.updateSceneDuration === "function") {
+          window.updateSceneDuration(idx, newDur);
+        }
+      }
+      if (this.pendingDragSceneIndex >= 0) {
+        const fromIdx = this.pendingDragSceneIndex;
+        const toIdx = this.targetDropIndex;
+        const wasDragging = this.isBlockDragging;
+
+        this.pendingDragSceneIndex = -1;
+        this.isBlockDragging = false;
+        this.targetDropIndex = -1;
+        document.body.style.cursor = "";
+
+        const allBlocks = this.viewport.querySelectorAll(".scene-block");
+        allBlocks.forEach(b => b.classList.remove("is-dragging", "drop-target-before", "drop-target-after"));
+
+        if (wasDragging && fromIdx >= 0 && toIdx >= 0 && fromIdx !== toIdx) {
+          if (typeof window.reorderScenes === "function") {
+            window.reorderScenes(fromIdx, toIdx);
+          }
+        }
+      }
+    });
+
+    // Keyboard Shortcuts (CapCut style)
+    document.addEventListener("keydown", (e) => {
+      const activeEl = document.activeElement;
+      if (activeEl && (activeEl.tagName === "INPUT" || activeEl.tagName === "TEXTAREA" || activeEl.tagName === "SELECT" || activeEl.isContentEditable)) {
+        return;
+      }
+
+      // Space: Play / Pause
+      if (e.code === "Space" || e.key === " ") {
+        e.preventDefault();
+        if (typeof window.togglePlayPause === "function") window.togglePlayPause();
+      }
+      // Ctrl+D or Cmd+D: Duplicate selected scene
+      else if ((e.ctrlKey || e.metaKey) && (e.key === "d" || e.key === "D")) {
+        e.preventDefault();
+        this.duplicateSelectedScene();
+      }
+      // Delete or Backspace: Delete selected scene
+      else if (e.key === "Delete") {
+        e.preventDefault();
+        this.deleteSelectedScene();
+      }
+      // S or C key: Split scene at playhead
+      else if (e.key === "s" || e.key === "S" || e.key === "c" || e.key === "C") {
+        if (!e.ctrlKey && !e.metaKey) {
+          e.preventDefault();
+          this.splitSceneAtPlayhead();
+        }
+      }
+      // ArrowLeft: Step back 0.5s
+      else if (e.key === "ArrowLeft") {
+        e.preventDefault();
+        this.seekTo(Math.max(0, this.currentTime - 0.5));
+      }
+      // ArrowRight: Step forward 0.5s
+      else if (e.key === "ArrowRight") {
+        e.preventDefault();
+        this.seekTo(Math.min(this.totalDuration, this.currentTime + 0.5));
       }
     });
 
@@ -130,6 +280,17 @@ class TimelineManager {
     if (this.collapseBtn) {
       this.collapseBtn.addEventListener("click", () => {
         this.section.classList.toggle("collapsed");
+      });
+    }
+  }
+
+  setSelectedScene(index) {
+    this.selectedSceneIndex = index;
+    if (this.viewport) {
+      const blocks = this.viewport.querySelectorAll(".scene-block");
+      blocks.forEach((b) => {
+        const idx = parseInt(b.dataset.sceneIndex, 10);
+        b.classList.toggle("selected", idx === index);
       });
     }
   }
@@ -175,6 +336,7 @@ class TimelineManager {
       return { ...sc, index: idx, start, duration: dur, end: accumTime };
     });
 
+    this.currentScenes = processedScenes;
     this.totalDuration = accumTime || 10;
     const totalWidthPx = Math.max(this.viewport.clientWidth, (this.totalDuration + 5) * this.pxPerSec);
 
@@ -218,6 +380,28 @@ class TimelineManager {
     }
   }
 
+  attachBlockInteractions(block, sceneIndex, startSec) {
+    block.dataset.sceneIndex = sceneIndex;
+
+    block.addEventListener("click", (e) => {
+      if (e.target.closest(".scene-block__handle")) return;
+      this.setSelectedScene(sceneIndex);
+      this.seekTo(startSec);
+      if (typeof window.onSceneSelected === "function") {
+        window.onSceneSelected(sceneIndex);
+      }
+    });
+
+    block.addEventListener("mousedown", (e) => {
+      if (e.target.closest(".scene-block__handle")) return;
+      this.pendingDragSceneIndex = sceneIndex;
+      this.dragStartX = e.clientX;
+      this.dragStartY = e.clientY;
+      this.isBlockDragging = false;
+      this.targetDropIndex = -1;
+    });
+  }
+
   renderVideoTrack(scenes) {
     this.videoTrack.innerHTML = "";
     scenes.forEach((sc) => {
@@ -226,7 +410,6 @@ class TimelineManager {
       block.className = `scene-block scene-block--video ${isSelected ? 'selected' : ''}`;
       block.style.left = `${sc.start * this.pxPerSec}px`;
       block.style.width = `${sc.duration * this.pxPerSec}px`;
-      block.dataset.sceneIndex = sc.index;
 
       const leftImgHtml = sc.leftImage ? `<img src="${sc.leftImage}" class="scene-block__thumb" />` : `<div class="scene-block__thumb-placeholder">Trái</div>`;
       const rightImgHtml = sc.rightImage ? `<img src="${sc.rightImage}" class="scene-block__thumb" />` : `<div class="scene-block__thumb-placeholder">Phải</div>`;
@@ -242,14 +425,7 @@ class TimelineManager {
         <div class="scene-block__handle scene-block__handle--right" title="Kéo để chỉnh thời lượng"></div>
       `;
 
-      block.addEventListener("click", (e) => {
-        if (e.target.closest(".scene-block__handle")) return;
-        this.selectedSceneIndex = sc.index;
-        this.renderTimeline(scenes);
-        if (typeof window.onSceneSelected === "function") {
-          window.onSceneSelected(sc.index);
-        }
-      });
+      this.attachBlockInteractions(block, sc.index, sc.start);
 
       const handleRight = block.querySelector(".scene-block__handle--right");
       if (handleRight) {
@@ -271,7 +447,8 @@ class TimelineManager {
     this.audioTrack.innerHTML = "";
     scenes.forEach((sc) => {
       const block = document.createElement("div");
-      block.className = "scene-block scene-block--audio";
+      const isSelected = sc.index === this.selectedSceneIndex;
+      block.className = `scene-block scene-block--audio ${isSelected ? 'selected' : ''}`;
       block.style.left = `${sc.start * this.pxPerSec}px`;
       block.style.width = `${sc.duration * this.pxPerSec}px`;
 
@@ -282,6 +459,7 @@ class TimelineManager {
       this.drawWaveformPlaceholder(canvas);
 
       block.appendChild(canvas);
+      this.attachBlockInteractions(block, sc.index, sc.start);
       this.audioTrack.appendChild(block);
     });
   }
@@ -309,7 +487,8 @@ class TimelineManager {
     this.textTrack.innerHTML = "";
     scenes.forEach((sc) => {
       const block = document.createElement("div");
-      block.className = "scene-block scene-block--text";
+      const isSelected = sc.index === this.selectedSceneIndex;
+      block.className = `scene-block scene-block--text ${isSelected ? 'selected' : ''}`;
       block.style.left = `${sc.start * this.pxPerSec}px`;
       block.style.width = `${sc.duration * this.pxPerSec}px`;
 
@@ -318,6 +497,7 @@ class TimelineManager {
       block.innerHTML = `
         <span class="scene-block__text-label" title="${textSnippet}">${textSnippet || "Văn bản cảnh " + (sc.index + 1)}</span>
       `;
+      this.attachBlockInteractions(block, sc.index, sc.start);
       this.textTrack.appendChild(block);
     });
   }

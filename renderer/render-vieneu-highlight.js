@@ -315,6 +315,10 @@ function toBase64DataUri(val) {
   return "";
 }
 
+function easeOutCubic(x) {
+  return 1 - Math.pow(1 - x, 3);
+}
+
 function makeFrame(scene, sceneIndex, progress, totalScenes, duration, actorFilePaths, imagePaths, resolvedVideoBgImage) {
   const speechText = scene.speechText || extractSpeechText(scene.text);
   const displayText = scene.displayText || extractDisplayText(scene.text);
@@ -324,6 +328,7 @@ function makeFrame(scene, sceneIndex, progress, totalScenes, duration, actorFile
   const fontFamily = scene.fontFamily || manifest.fontFamily || defaultFontFamily;
   const leftTerm = scene.leftTerm || manifest.leftTerm || "Trái";
   const rightTerm = scene.rightTerm || manifest.rightTerm || "Phải";
+  const animationStyle = scene.animationStyle || manifest.animationStyle || "fade";
   const sceneImagePaths = {
     left: scene.leftImage || "",
     right: scene.rightImage || ""
@@ -374,6 +379,31 @@ function makeFrame(scene, sceneIndex, progress, totalScenes, duration, actorFile
   highlightY = Math.max(570, Math.min(1200, highlightY + offContentY));
   const actorY = Math.max(1200, Math.min(1380, 1270 + offActorY));
 
+  // Entrance Animation transform calculation
+  const animDur = 0.35;
+  const currentSec = progress * (duration || 3);
+  const animP = Math.min(1.0, currentSec / animDur);
+  const easeP = easeOutCubic(animP);
+
+  let animGroupStart = "";
+  let animGroupEnd = "";
+
+  if (animationStyle === "fade") {
+    animGroupStart = `<g opacity="${easeP.toFixed(3)}">`;
+    animGroupEnd = `</g>`;
+  } else if (animationStyle === "slide") {
+    const slideY = Math.round((1 - easeP) * 25);
+    animGroupStart = `<g opacity="${easeP.toFixed(3)}" transform="translate(0, ${slideY})">`;
+    animGroupEnd = `</g>`;
+  } else if (animationStyle === "pop") {
+    const scale = (0.85 + 0.15 * easeP).toFixed(3);
+    animGroupStart = `<g opacity="${easeP.toFixed(3)}" transform="translate(540, 960) scale(${scale}) translate(-540, -960)">`;
+    animGroupEnd = `</g>`;
+  } else if (animationStyle === "fly") {
+    animGroupStart = `<g opacity="${easeP.toFixed(3)}">`;
+    animGroupEnd = `</g>`;
+  }
+
   const illustrationMarkup = hasImages ? `
     ${leftIllustration(sceneImagePaths, imgY)}
     ${rightIllustration(sceneImagePaths, imgY)}
@@ -409,6 +439,7 @@ function makeFrame(scene, sceneIndex, progress, totalScenes, duration, actorFile
   </defs>
   ${bgLayer}
 
+  ${animGroupStart}
   ${termsMarkup}
 
   ${illustrationMarkup}
@@ -416,6 +447,7 @@ function makeFrame(scene, sceneIndex, progress, totalScenes, duration, actorFile
   ${subtitlesMarkup}
 
   ${actorMarkup}
+  ${animGroupEnd}
 </svg>`;
 }
 

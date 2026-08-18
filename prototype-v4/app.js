@@ -28,6 +28,7 @@ const CONFIG_KEYS = {
   fontSizeInput: "fontSize",
   actorScaleInput: "actorScale",
   fontSelect: "fontFamily",
+  animationSelect: "animationStyle",
   showSubtitlesToggle: "showSubtitles",
   showTermsToggle: "showTerms",
   showIllustrationsToggle: "showIllustrations",
@@ -46,6 +47,7 @@ function initGlobalConfigs() {
     subFontWeight: els.subFontWeightSelect ? els.subFontWeightSelect.value : "700",
     actorScale: els.actorScaleInput ? (parseInt(els.actorScaleInput.value, 10) || 100) : 100,
     fontFamily: els.fontSelect ? els.fontSelect.value : "Segoe UI, Arial, sans-serif",
+    animationStyle: els.animationSelect ? els.animationSelect.value : "fade",
     videoBg: els.videoBg ? els.videoBg.value : "#ffffff",
     videoBgImage: state.videoBgImage || "",
     showSubtitles: els.showSubtitlesToggle ? els.showSubtitlesToggle.checked : true,
@@ -215,7 +217,7 @@ function getEffectiveSceneData(i) {
   const configKeys = [
     "leftColor", "rightColor", "textColor", "highlightColor",
     "fontSize", "termFontSize", "termFontWeight", "subFontWeight",
-    "actorScale", "fontFamily", "videoBg", "videoBgImage",
+    "actorScale", "fontFamily", "animationStyle", "videoBg", "videoBgImage",
     "showSubtitles", "showTerms", "showIllustrations", "showActor"
   ];
 
@@ -321,6 +323,7 @@ function render() {
   if (els.fontSizeInput) els.fontSizeInput.value = currentConfig.fontSize || 40;
   if (els.actorScaleInput) els.actorScaleInput.value = currentConfig.actorScale || 100;
   if (els.fontSelect) els.fontSelect.value = currentConfig.fontFamily || "Segoe UI, Arial, sans-serif";
+  if (els.animationSelect) els.animationSelect.value = currentConfig.animationStyle || "fade";
   
   if (els.showSubtitlesToggle) els.showSubtitlesToggle.checked = currentConfig.showSubtitles !== false;
   if (els.showTermsToggle) els.showTermsToggle.checked = currentConfig.showTerms !== false;
@@ -385,6 +388,14 @@ function render() {
     card.classList.toggle("card--text-only", !hasImages && !hasActor);
     card.style.setProperty("--preview-font-size", `${previewFontSize}px`);
     card.style.setProperty("--preview-font-family", selectedFont);
+
+    // Apply & trigger entrance animation class
+    const animStyle = previewData.animationStyle || "fade";
+    card.classList.remove("anim-none", "anim-fade", "anim-slide", "anim-pop", "anim-fly");
+    if (animStyle !== "none") {
+      void card.offsetWidth; // Force reflow to re-trigger CSS keyframe animations on scene change
+      card.classList.add(`anim-${animStyle}`);
+    }
   }
 
   // Update editor inputs & image previews
@@ -525,6 +536,10 @@ window.getTimelineScenes = function() {
 };
 
 window.onTimelineSeek = function(sec) {
+  if (state.playing) {
+    playbackStartTime = performance.now();
+    playbackStartTimelineTime = sec;
+  }
   const list = scenes();
   let accum = 0;
   let targetScene = 0;
@@ -536,9 +551,14 @@ window.onTimelineSeek = function(sec) {
     }
     accum += dur;
   }
-  state.sceneIndex = targetScene;
-  state.activeScopeIndex = targetScene;
-  render();
+  if (state.sceneIndex !== targetScene) {
+    state.sceneIndex = targetScene;
+    state.activeScopeIndex = targetScene;
+    if (window.timelineManager) {
+      window.timelineManager.setSelectedScene(targetScene);
+    }
+    render();
+  }
 };
 
 window.onSceneSelected = function(index) {
@@ -585,8 +605,15 @@ window.splitSceneAtTime = function(sec) {
 
   list[splitSceneIndex] = part1;
   list.splice(splitSceneIndex + 1, 0, part2);
+  
+  const existingOverride = state.sceneOverrides[splitSceneIndex] || { isCustom: false };
+  state.sceneOverrides.splice(splitSceneIndex + 1, 0, { ...existingOverride });
+  const existingPose = state.poses[splitSceneIndex] || defaultPose(splitSceneIndex, part1);
+  state.poses.splice(splitSceneIndex + 1, 0, existingPose);
+
   els.scriptInput.value = list.join("\n");
-  state.sceneIndex = splitSceneIndex;
+  state.sceneIndex = splitSceneIndex + 1;
+  state.activeScopeIndex = splitSceneIndex + 1;
   render();
   showToast(`✂️ Đã cắt Cảnh ${splitSceneIndex + 1} thành 2 phân cảnh`);
 };
@@ -601,7 +628,8 @@ window.deleteScene = function(index) {
   state.sceneOverrides.splice(index, 1);
   state.poses.splice(index, 1);
   els.scriptInput.value = list.join("\n");
-  state.sceneIndex = Math.max(0, index - 1);
+  state.sceneIndex = Math.max(0, Math.min(index, list.length - 2));
+  state.activeScopeIndex = Math.max(-1, Math.min(state.activeScopeIndex, list.length - 2));
   render();
   showToast(`🗑️ Đã xóa Cảnh ${index + 1}`);
 };
@@ -613,9 +641,15 @@ window.duplicateScene = function(index) {
   list.splice(index + 1, 0, dupText);
   if (state.sceneOverrides[index]) {
     state.sceneOverrides.splice(index + 1, 0, { ...state.sceneOverrides[index] });
+  } else {
+    state.sceneOverrides.splice(index + 1, 0, { isCustom: false });
   }
+  const poseToDup = state.poses[index] || defaultPose(index, dupText);
+  state.poses.splice(index + 1, 0, poseToDup);
+
   els.scriptInput.value = list.join("\n");
   state.sceneIndex = index + 1;
+  state.activeScopeIndex = index + 1;
   render();
   showToast(`📋 Đã nhân bản Cảnh ${index + 1}`);
 };
@@ -625,27 +659,141 @@ window.addNewScene = function() {
   list.push("Nhập nội dung cho cảnh mới ở đây.");
   els.scriptInput.value = list.join("\n");
   state.sceneIndex = list.length - 1;
+  state.activeScopeIndex = list.length - 1;
   render();
   showToast("➕ Đã thêm cảnh mới");
 };
 
-function tick() {
+window.reorderScenes = function(fromIndex, toIndex) {
   const list = scenes();
-  const words = (list[state.sceneIndex] || "").split(/\s+/).filter(Boolean);
-  state.wordIndex += 1;
-  if (state.wordIndex >= words.length) {
-    state.wordIndex = 0;
-    state.sceneIndex = (state.sceneIndex + 1) % Math.max(1, list.length);
-  }
+  if (fromIndex === toIndex || fromIndex < 0 || toIndex < 0 || fromIndex >= list.length || toIndex >= list.length) return;
+
+  const [movedText] = list.splice(fromIndex, 1);
+  list.splice(toIndex, 0, movedText);
+
+  const [movedOverride] = state.sceneOverrides.splice(fromIndex, 1);
+  state.sceneOverrides.splice(toIndex, 0, movedOverride || { isCustom: false });
+
+  const [movedPose] = state.poses.splice(fromIndex, 1);
+  state.poses.splice(toIndex, 0, movedPose);
+
+  els.scriptInput.value = list.join("\n");
+  state.sceneIndex = toIndex;
+  state.activeScopeIndex = toIndex;
   render();
+  showToast(`⇄ Đã di chuyển Cảnh ${fromIndex + 1} ➔ Cảnh ${toIndex + 1}`);
+};
+
+let playbackAnimFrame = null;
+let playbackStartTime = 0;
+let playbackStartTimelineTime = 0;
+
+function stopPlayback() {
+  state.playing = false;
+  if (playbackAnimFrame) {
+    cancelAnimationFrame(playbackAnimFrame);
+    playbackAnimFrame = null;
+  }
+  if (els.playButton) els.playButton.textContent = "Phát thử";
+  if (window.timelineManager && window.timelineManager.playPauseBtn) {
+    window.timelineManager.playPauseBtn.textContent = "▶️";
+  }
+}
+
+function playbackLoop() {
+  if (!state.playing) return;
+
+  const list = scenes();
+  if (list.length === 0) {
+    stopPlayback();
+    return;
+  }
+
+  let totalDuration = 0;
+  const sceneDurations = list.map((text, i) => {
+    const dur = (state.sceneOverrides[i] && state.sceneOverrides[i].duration) || estimate(text);
+    totalDuration += dur;
+    return dur;
+  });
+  if (totalDuration <= 0) totalDuration = 10;
+
+  const now = performance.now();
+  const elapsedSec = (now - playbackStartTime) / 1000;
+  let currentTimelineTime = playbackStartTimelineTime + elapsedSec;
+
+  if (currentTimelineTime >= totalDuration) {
+    currentTimelineTime = 0;
+    playbackStartTime = now;
+    playbackStartTimelineTime = 0;
+  }
+
+  if (window.timelineManager) {
+    window.timelineManager.currentTime = currentTimelineTime;
+    window.timelineManager.updatePlayheadPosition();
+  }
+
+  let accum = 0;
+  let targetSceneIndex = 0;
+  let sceneOffsetSec = 0;
+
+  for (let i = 0; i < list.length; i++) {
+    const dur = sceneDurations[i];
+    if (currentTimelineTime >= accum && currentTimelineTime < accum + dur) {
+      targetSceneIndex = i;
+      sceneOffsetSec = currentTimelineTime - accum;
+      break;
+    }
+    accum += dur;
+  }
+
+  const currentText = list[targetSceneIndex] || "";
+  const { displayText } = parsePhoneticText(currentText);
+  const words = displayText.split(/\s+/).filter(Boolean);
+  const dur = sceneDurations[targetSceneIndex] || 1;
+  const wordRatio = words.length > 0 ? Math.min(words.length - 1, Math.floor((sceneOffsetSec / dur) * words.length)) : 0;
+
+  const sceneChanged = state.sceneIndex !== targetSceneIndex;
+  state.sceneIndex = targetSceneIndex;
+  state.wordIndex = wordRatio;
+
+  if (sceneChanged) {
+    state.activeScopeIndex = targetSceneIndex;
+    if (window.timelineManager) {
+      window.timelineManager.setSelectedScene(targetSceneIndex);
+    }
+    render();
+  } else {
+    renderHighlight(currentText);
+  }
+
+  playbackAnimFrame = requestAnimationFrame(playbackLoop);
 }
 
 function togglePlay() {
   state.playing = !state.playing;
-  els.playButton.textContent = state.playing ? "Tạm dừng" : "Phát thử";
-  clearInterval(state.timer);
-  if (state.playing) state.timer = setInterval(tick, 520);
+  
+  if (els.playButton) els.playButton.textContent = state.playing ? "Tạm dừng" : "Phát thử";
+  if (window.timelineManager && window.timelineManager.playPauseBtn) {
+    window.timelineManager.playPauseBtn.textContent = state.playing ? "⏸️" : "▶️";
+  }
+
+  if (playbackAnimFrame) {
+    cancelAnimationFrame(playbackAnimFrame);
+    playbackAnimFrame = null;
+  }
+
+  if (state.playing) {
+    let curTime = window.timelineManager ? window.timelineManager.currentTime : 0;
+    let totalDur = window.timelineManager ? window.timelineManager.totalDuration : 10;
+    if (curTime >= totalDur - 0.1) {
+      curTime = 0;
+    }
+    playbackStartTime = performance.now();
+    playbackStartTimelineTime = curTime;
+    playbackAnimFrame = requestAnimationFrame(playbackLoop);
+  }
 }
+window.togglePlayPause = togglePlay;
 
 function readImage(file, side) {
   if (!file) return;
@@ -1004,6 +1152,7 @@ function buildRenderConfig() {
     subFontWeight: els.subFontWeightSelect ? els.subFontWeightSelect.value : "700",
     actorScale: els.actorScaleInput ? (parseInt(els.actorScaleInput.value, 10) || 100) : 100,
     fontFamily: els.fontSelect ? els.fontSelect.value : "Segoe UI, Arial, sans-serif",
+    animationStyle: els.animationSelect ? els.animationSelect.value : "fade",
     videoBg: els.videoBg.value,
     videoBgImage: state.videoBgImage || "",
     textColor: els.textColor ? els.textColor.value : "#202525",
@@ -1031,11 +1180,15 @@ function buildRenderConfig() {
     scenes: list.map((text, i) => {
       const eff = getEffectiveSceneData(i);
       const { displayText, speechText } = parsePhoneticText(text);
+      const dur = (state.sceneOverrides[i] && state.sceneOverrides[i].duration)
+        ? state.sceneOverrides[i].duration
+        : estimate(text);
       return {
         id: `scene-${i + 1}`,
         text,
         displayText,
         speechText,
+        duration: dur,
         pose: state.poses[i] || "point-left",
         leftTerm: eff.leftTerm,
         rightTerm: eff.rightTerm,
@@ -1051,6 +1204,7 @@ function buildRenderConfig() {
         subFontWeight: eff.subFontWeight,
         actorScale: eff.actorScale,
         fontFamily: eff.fontFamily,
+        animationStyle: eff.animationStyle || "fade",
         videoBg: eff.videoBg,
         videoBgImage: eff.videoBgImage,
         showSubtitles: eff.showSubtitles,
@@ -1398,6 +1552,378 @@ function initInteractivePreview() {
         render();
       }
     }, { passive: true });
+  }
+
+  initPreviewContextMenu();
+}
+
+function initPreviewContextMenu() {
+  const pcm = document.getElementById("previewContextMenu");
+  const pcmTitle = document.getElementById("pcmTitle");
+  const pcmBody = document.getElementById("pcmBody");
+  const pcmCloseBtn = document.getElementById("pcmCloseBtn");
+  const phoneEl = document.getElementById("previewPhone");
+
+  if (!pcm || !phoneEl) return;
+
+  const hidePcm = () => {
+    pcm.hidden = true;
+  };
+
+  pcm.addEventListener("click", (e) => e.stopPropagation());
+  pcm.addEventListener("contextmenu", (e) => e.stopPropagation());
+
+  if (pcmCloseBtn) {
+    pcmCloseBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      hidePcm();
+    });
+  }
+
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") hidePcm();
+  });
+
+  phoneEl.addEventListener("contextmenu", (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    const target = e.target;
+    let zoneType = "background";
+
+    if (target.closest(".zone-terms") || target.closest(".hero-title")) {
+      zoneType = "terms";
+    } else if (target.closest(".zone-images") || target.closest("#previewImages") || target.closest(".preview-image-wrap")) {
+      zoneType = "images";
+    } else if (target.closest(".zone-content") || target.closest(".read-box") || target.closest("#highlightText")) {
+      zoneType = "content";
+    } else if (target.closest(".zone-actor") || target.closest("#actor")) {
+      zoneType = "actor";
+    } else if (target.closest(".card") || target.closest(".phone")) {
+      zoneType = "background";
+    }
+
+    renderPcmControls(zoneType);
+
+    pcm.hidden = false;
+    const popW = 320;
+    const popH = Math.min(pcm.offsetHeight || 380, 480);
+    let left = e.clientX + 10;
+    let top = e.clientY + 10;
+
+    if (left + popW > window.innerWidth - 20) {
+      left = e.clientX - popW - 10;
+    }
+    if (top + popH > window.innerHeight - 20) {
+      top = window.innerHeight - popH - 20;
+    }
+    left = Math.max(10, left);
+    top = Math.max(10, top);
+
+    pcm.style.left = `${left}px`;
+    pcm.style.top = `${top}px`;
+  });
+
+  function renderPcmControls(zoneType) {
+    pcmBody.innerHTML = "";
+
+    const sceneIdx = state.sceneIndex;
+    const effectiveData = getEffectiveSceneData(sceneIdx);
+
+    if (zoneType === "terms") {
+      pcmTitle.innerHTML = "🏷️ Cài đặt Từ so sánh";
+
+      pcmBody.innerHTML = `
+        <div class="pcm-row">
+          <div class="pcm-field">
+            <span class="pcm-label">Vế trái</span>
+            <input type="text" id="pcmLeftTerm" class="pcm-input" value="${escapeHtml(effectiveData.leftTerm || "")}">
+          </div>
+          <div class="pcm-field" style="max-width: 48px;">
+            <span class="pcm-label">Màu</span>
+            <input type="color" id="pcmLeftColor" class="cp-color-chip" value="${effectiveData.leftColor || "#b92c1e"}">
+          </div>
+        </div>
+        <div class="pcm-row">
+          <div class="pcm-field">
+            <span class="pcm-label">Vế phải</span>
+            <input type="text" id="pcmRightTerm" class="pcm-input" value="${escapeHtml(effectiveData.rightTerm || "")}">
+          </div>
+          <div class="pcm-field" style="max-width: 48px;">
+            <span class="pcm-label">Màu</span>
+            <input type="color" id="pcmRightColor" class="cp-color-chip" value="${effectiveData.rightColor || "#5d9a4d"}">
+          </div>
+        </div>
+
+        <div class="pcm-row">
+          <div class="pcm-field">
+            <span class="pcm-label">Font video</span>
+            <select id="pcmFontSelect" class="cp-select">
+              <option value="Segoe UI, Tahoma, sans-serif" ${effectiveData.fontFamily?.includes("Segoe UI") ? "selected" : ""}>Segoe UI</option>
+              <option value="Arial, Helvetica, sans-serif" ${effectiveData.fontFamily?.includes("Arial") ? "selected" : ""}>Arial</option>
+              <option value="Tahoma, Geneva, sans-serif" ${effectiveData.fontFamily?.includes("Tahoma") ? "selected" : ""}>Tahoma</option>
+              <option value="Times New Roman, Times, serif" ${effectiveData.fontFamily?.includes("Times") ? "selected" : ""}>Times New Roman</option>
+              <option value="Georgia, serif" ${effectiveData.fontFamily?.includes("Georgia") ? "selected" : ""}>Georgia</option>
+            </select>
+          </div>
+          <div class="pcm-field">
+            <span class="pcm-label">Độ đậm</span>
+            <select id="pcmTermFontWeight" class="cp-select">
+              <option value="900" ${effectiveData.termFontWeight == "900" ? "selected" : ""}>900 — Black</option>
+              <option value="700" ${effectiveData.termFontWeight == "700" ? "selected" : ""}>700 — Bold</option>
+              <option value="600" ${effectiveData.termFontWeight == "600" ? "selected" : ""}>600 — SemiBold</option>
+              <option value="400" ${effectiveData.termFontWeight == "400" ? "selected" : ""}>400 — Normal</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="pcm-row">
+          <span class="pcm-label">Cỡ chữ từ so sánh</span>
+          <div class="cp-stepper">
+            <button id="pcmTermSizeDec" type="button" class="cp-stepper__btn">−</button>
+            <input id="pcmTermSizeInput" type="number" value="${effectiveData.termFontSize || 56}" class="cp-stepper__input" readonly />
+            <button id="pcmTermSizeInc" type="button" class="cp-stepper__btn">+</button>
+            <span class="cp-stepper__unit">px</span>
+          </div>
+        </div>
+
+        <label class="pcm-toggle-row">
+          <span class="pcm-label">🏷️ Hiển thị từ so sánh</span>
+          <input type="checkbox" id="pcmShowTerms" ${effectiveData.showTerms !== false ? "checked" : ""} />
+        </label>
+      `;
+
+      bindInput("pcmLeftTerm", els.leftTerm);
+      bindInput("pcmRightTerm", els.rightTerm);
+      bindInput("pcmLeftColor", els.leftColor);
+      bindInput("pcmRightColor", els.rightColor);
+      bindInput("pcmFontSelect", els.fontSelect);
+      bindInput("pcmTermFontWeight", els.termFontWeightSelect);
+      bindCheckbox("pcmShowTerms", els.showTermsToggle);
+
+      bindStepper("pcmTermSizeDec", "pcmTermSizeInc", els.termFontSizeDecBtn, els.termFontSizeIncBtn, "pcmTermSizeInput", els.termFontSizeInput);
+
+    } else if (zoneType === "images") {
+      pcmTitle.innerHTML = "🖼️ Cài đặt Ảnh minh họa";
+
+      pcmBody.innerHTML = `
+        <span class="pcm-section-title">Vế trái</span>
+        <div class="pcm-btn-grid">
+          <button type="button" class="pcm-btn" id="pcmUploadLeft">📷 Tải ảnh trái</button>
+          <button type="button" class="pcm-btn" id="pcmRemoveLeft" style="color:#f07070;">🗑️ Xóa ảnh trái</button>
+        </div>
+
+        <span class="pcm-section-title">Vế phải</span>
+        <div class="pcm-btn-grid">
+          <button type="button" class="pcm-btn" id="pcmUploadRight">📷 Tải ảnh phải</button>
+          <button type="button" class="pcm-btn" id="pcmRemoveRight" style="color:#f07070;">🗑️ Xóa ảnh phải</button>
+        </div>
+
+        <label class="pcm-toggle-row" style="margin-top: 6px;">
+          <span class="pcm-label">🖼️ Hiển thị ảnh minh họa</span>
+          <input type="checkbox" id="pcmShowIllustrations" ${effectiveData.showIllustrations !== false ? "checked" : ""} />
+        </label>
+      `;
+
+      document.getElementById("pcmUploadLeft")?.addEventListener("click", () => { if (els.leftUpload) els.leftUpload.click(); });
+      document.getElementById("pcmRemoveLeft")?.addEventListener("click", () => { if (els.leftRemoveBtn) els.leftRemoveBtn.click(); renderPcmControls("images"); });
+      document.getElementById("pcmUploadRight")?.addEventListener("click", () => { if (els.rightUpload) els.rightUpload.click(); });
+      document.getElementById("pcmRemoveRight")?.addEventListener("click", () => { if (els.rightRemoveBtn) els.rightRemoveBtn.click(); renderPcmControls("images"); });
+      bindCheckbox("pcmShowIllustrations", els.showIllustrationsToggle);
+
+    } else if (zoneType === "content") {
+      pcmTitle.innerHTML = "💬 Cài đặt Thuyết minh & Phụ đề";
+
+      pcmBody.innerHTML = `
+        <div class="pcm-row">
+          <span class="pcm-label">Cỡ chữ thuyết minh</span>
+          <div class="cp-stepper">
+            <button id="pcmSubSizeDec" type="button" class="cp-stepper__btn">−</button>
+            <input id="pcmSubSizeInput" type="number" value="${effectiveData.fontSize || 40}" class="cp-stepper__input" readonly />
+            <button id="pcmSubSizeInc" type="button" class="cp-stepper__btn">+</button>
+            <span class="cp-stepper__unit">px</span>
+          </div>
+        </div>
+
+        <div class="pcm-row">
+          <div class="pcm-field">
+            <span class="pcm-label">Độ đậm</span>
+            <select id="pcmSubFontWeight" class="cp-select">
+              <option value="900" ${effectiveData.subFontWeight == "900" ? "selected" : ""}>900 — Black</option>
+              <option value="700" ${effectiveData.subFontWeight == "700" ? "selected" : ""}>700 — Bold</option>
+              <option value="600" ${effectiveData.subFontWeight == "600" ? "selected" : ""}>600 — SemiBold</option>
+              <option value="400" ${effectiveData.subFontWeight == "400" ? "selected" : ""}>400 — Normal</option>
+            </select>
+          </div>
+          <div class="pcm-field" style="max-width: 60px;">
+            <span class="pcm-label">Màu chữ</span>
+            <input type="color" id="pcmTextColor" class="cp-color-chip" value="${effectiveData.textColor || "#202525"}">
+          </div>
+          <div class="pcm-field" style="max-width: 60px;">
+            <span class="pcm-label">Highlight</span>
+            <input type="color" id="pcmHighlightColor" class="cp-color-chip" value="${effectiveData.highlightColor || "#3ac6c6"}">
+          </div>
+        </div>
+
+        <div class="pcm-row">
+          <div class="pcm-field">
+            <span class="pcm-label">✨ Hiệu ứng xuất hiện</span>
+            <select id="pcmAnimationSelect" class="cp-select">
+              <option value="none" ${effectiveData.animationStyle == "none" ? "selected" : ""}>Không hiệu ứng</option>
+              <option value="fade" ${effectiveData.animationStyle == "fade" ? "selected" : ""}>Fade In (Mờ dần)</option>
+              <option value="slide" ${effectiveData.animationStyle == "slide" ? "selected" : ""}>Slide Up (Trượt lên)</option>
+              <option value="pop" ${effectiveData.animationStyle == "pop" ? "selected" : ""}>Pop In (Phóng nảy)</option>
+              <option value="fly" ${effectiveData.animationStyle == "fly" ? "selected" : ""}>Split Fly (Bay 2 bên)</option>
+            </select>
+          </div>
+          <div class="pcm-field">
+            <span class="pcm-label">Đổi màu chữ</span>
+            <select id="pcmHighlightMode" class="cp-select">
+              <option value="word" ${els.highlightMode?.value == "word" ? "selected" : ""}>Từng từ</option>
+              <option value="line" ${els.highlightMode?.value == "line" ? "selected" : ""}>Cả dòng</option>
+            </select>
+          </div>
+        </div>
+
+        <label class="pcm-toggle-row">
+          <span class="pcm-label">💬 Hiển thị phụ đề</span>
+          <input type="checkbox" id="pcmShowSubtitles" ${effectiveData.showSubtitles !== false ? "checked" : ""} />
+        </label>
+      `;
+
+      bindStepper("pcmSubSizeDec", "pcmSubSizeInc", els.fontSizeDecBtn, els.fontSizeIncBtn, "pcmSubSizeInput", els.fontSizeInput);
+      bindInput("pcmSubFontWeight", els.subFontWeightSelect);
+      bindInput("pcmTextColor", els.textColor);
+      bindInput("pcmHighlightColor", els.highlightColor);
+      bindInput("pcmAnimationSelect", els.animationSelect);
+      bindInput("pcmHighlightMode", els.highlightMode);
+      bindCheckbox("pcmShowSubtitles", els.showSubtitlesToggle);
+
+    } else if (zoneType === "actor") {
+      pcmTitle.innerHTML = "🧍 Cài đặt Nhân vật";
+
+      const currentPose = state.poses[sceneIdx] || "point-left";
+
+      pcmBody.innerHTML = `
+        <span class="pcm-section-title">Chọn tư thế nhân vật</span>
+        <div class="pcm-btn-grid">
+          <button type="button" class="pcm-btn ${currentPose === "point-left" ? "active" : ""}" data-pose="point-left">👉 Chỉ trái</button>
+          <button type="button" class="pcm-btn ${currentPose === "point-right" ? "active" : ""}" data-pose="point-right">👈 Chỉ phải</button>
+          <button type="button" class="pcm-btn ${currentPose === "think" ? "active" : ""}" data-pose="think">❓ Câu hỏi</button>
+          <button type="button" class="pcm-btn ${currentPose === "explain-1" ? "active" : ""}" data-pose="explain-1">🗣️ Giải thích</button>
+          <button type="button" class="pcm-btn ${currentPose === "explain-2" ? "active" : ""}" data-pose="explain-2">📢 Nhấn mạnh</button>
+          <button type="button" class="pcm-btn ${currentPose === "explain-3" ? "active" : ""}" data-pose="explain-3">📊 Phân tích</button>
+          <button type="button" class="pcm-btn ${currentPose === "none" ? "active" : ""}" data-pose="none">🚫 Không NV</button>
+        </div>
+
+        <div class="pcm-row" style="margin-top: 6px;">
+          <span class="pcm-label">Kích thước nhân vật</span>
+          <div class="cp-stepper">
+            <button id="pcmActorScaleDec" type="button" class="cp-stepper__btn">−</button>
+            <input id="pcmActorScaleInput" type="number" value="${effectiveData.actorScale || 100}" class="cp-stepper__input" readonly />
+            <button id="pcmActorScaleInc" type="button" class="cp-stepper__btn">+</button>
+            <span class="cp-stepper__unit">%</span>
+          </div>
+        </div>
+
+        <label class="pcm-toggle-row">
+          <span class="pcm-label">🧍 Hiển thị nhân vật</span>
+          <input type="checkbox" id="pcmShowActor" ${effectiveData.showActor !== false ? "checked" : ""} />
+        </label>
+      `;
+
+      pcmBody.querySelectorAll("button[data-pose]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          state.poses[sceneIdx] = btn.dataset.pose;
+          render();
+          renderPcmControls("actor");
+        });
+      });
+
+      bindStepper("pcmActorScaleDec", "pcmActorScaleInc", els.actorScaleDecBtn, els.actorScaleIncBtn, "pcmActorScaleInput", els.actorScaleInput);
+      bindCheckbox("pcmShowActor", els.showActorToggle);
+
+    } else { // Background
+      pcmTitle.innerHTML = "🎨 Cài đặt Nền Video";
+
+      pcmBody.innerHTML = `
+        <div class="pcm-row">
+          <span class="pcm-label">Màu nền video</span>
+          <input type="color" id="pcmVideoBg" class="cp-color-chip" value="${effectiveData.videoBg || "#ffffff"}">
+        </div>
+
+        <span class="pcm-section-title">Ảnh nền video</span>
+        <div class="pcm-btn-grid">
+          <button type="button" class="pcm-btn" id="pcmUploadBg">🖼️ Tải ảnh nền</button>
+          <button type="button" class="pcm-btn" id="pcmRemoveBg" style="color:#f07070;">🗑️ Xóa ảnh nền</button>
+        </div>
+
+        <div class="pcm-field" style="margin-top: 6px;">
+          <span class="pcm-label">Font chữ toàn video</span>
+          <select id="pcmFontSelectBg" class="cp-select">
+            <option value="Segoe UI, Tahoma, sans-serif" ${effectiveData.fontFamily?.includes("Segoe UI") ? "selected" : ""}>Segoe UI</option>
+            <option value="Arial, Helvetica, sans-serif" ${effectiveData.fontFamily?.includes("Arial") ? "selected" : ""}>Arial</option>
+            <option value="Tahoma, Geneva, sans-serif" ${effectiveData.fontFamily?.includes("Tahoma") ? "selected" : ""}>Tahoma</option>
+            <option value="Times New Roman, Times, serif" ${effectiveData.fontFamily?.includes("Times") ? "selected" : ""}>Times New Roman</option>
+            <option value="Georgia, serif" ${effectiveData.fontFamily?.includes("Georgia") ? "selected" : ""}>Georgia</option>
+          </select>
+        </div>
+      `;
+
+      bindInput("pcmVideoBg", els.videoBg);
+      bindInput("pcmFontSelectBg", els.fontSelect);
+      document.getElementById("pcmUploadBg")?.addEventListener("click", () => { if (els.videoBgImageUpload) els.videoBgImageUpload.click(); });
+      document.getElementById("pcmRemoveBg")?.addEventListener("click", () => { if (els.videoBgImageRemoveBtn) els.videoBgImageRemoveBtn.click(); renderPcmControls("background"); });
+    }
+  }
+
+  function bindInput(pcmElId, sidebarEl) {
+    const el = document.getElementById(pcmElId);
+    if (!el || !sidebarEl) return;
+    const handler = () => {
+      sidebarEl.value = el.value;
+      sidebarEl.dispatchEvent(new Event("change"));
+    };
+    el.addEventListener("input", handler);
+    el.addEventListener("change", handler);
+  }
+
+  function bindCheckbox(pcmElId, sidebarEl) {
+    const el = document.getElementById(pcmElId);
+    if (!el || !sidebarEl) return;
+    el.addEventListener("change", () => {
+      sidebarEl.checked = el.checked;
+      sidebarEl.dispatchEvent(new Event("change"));
+    });
+  }
+
+  function bindStepper(pcmDecId, pcmIncId, sidebarDecEl, sidebarIncEl, pcmValInputId, sidebarValInput) {
+    const decBtn = document.getElementById(pcmDecId);
+    const incBtn = document.getElementById(pcmIncId);
+    const valInput = document.getElementById(pcmValInputId);
+
+    const syncVal = () => {
+      if (valInput && sidebarValInput) {
+        valInput.value = sidebarValInput.value;
+      }
+    };
+
+    if (decBtn && sidebarDecEl) {
+      decBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        e.preventDefault();
+        sidebarDecEl.click();
+        syncVal();
+      });
+    }
+    if (incBtn && sidebarIncEl) {
+      incBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        e.preventDefault();
+        sidebarIncEl.click();
+        syncVal();
+      });
+    }
   }
 }
 
@@ -1770,13 +2296,6 @@ function initLocalVoiceSwitcher() {
     });
   }
 
-  engineSel.addEventListener("change", () => {
-    localStorage.setItem("riki:settings:tts-engine", engineSel.value);
-    renderLocalVoiceCards();
-  });
-
-  const savedEngine = localStorage.getItem("riki:settings:tts-engine") || "vieneu";
-  engineSel.value = savedEngine;
   renderLocalVoiceCards();
 }
 

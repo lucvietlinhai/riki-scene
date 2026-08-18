@@ -17,6 +17,47 @@
     <div class="brand">
       <span class="brand__logo">R</span>
     </div>
+
+    <!-- TABS điều hướng tính năng (moved to Header) -->
+    <nav class="tabs topbar__tabs">
+      <button class="tab active" data-panel="contentPanel" type="button">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+          stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="3" width="18" height="18" rx="2" />
+          <path d="M3 9h18M9 21V9" />
+        </svg>
+        Trình biên soạn
+      </button>
+      <button class="tab" data-panel="voicePanel" type="button">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+          stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
+          <path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v4M8 23h8" />
+        </svg>
+        Thuyết minh
+      </button>
+      <button class="tab" data-panel="scenePanel" type="button">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+          stroke-linecap="round" stroke-linejoin="round">
+          <line x1="8" y1="6" x2="21" y2="6" />
+          <line x1="8" y1="12" x2="21" y2="12" />
+          <line x1="8" y1="18" x2="21" y2="18" />
+          <line x1="3" y1="6" x2="3.01" y2="6" />
+          <line x1="3" y1="12" x2="3.01" y2="12" />
+          <line x1="3" y1="18" x2="3.01" y2="18" />
+        </svg>
+        Phân cảnh &amp; Nhân vật
+      </button>
+      <button class="tab" data-panel="actorPanel" type="button">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+          stroke-linecap="round" stroke-linejoin="round">
+          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+          <circle cx="12" cy="7" r="4" />
+        </svg>
+        Cài đặt nhân vật
+      </button>
+    </nav>
+
     <div class="topbar__actions">
       <button class="btn-bug-log" id="bugLogBtn" type="button" title="Nhật ký hoạt động & Bug Log">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
@@ -51,298 +92,126 @@
   </header>
 
   <main class="layout">
-    <section class="preview">
-      <div class="preview__header">
-        <span class="preview__label">Xem trước</span>
-        <div class="scene-nav">
-          <button id="prevScene" type="button" title="Cảnh trước">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
-              stroke-linecap="round" stroke-linejoin="round">
-              <polyline points="15 18 9 12 15 6" />
-            </svg>
-          </button>
-          <strong><span id="sceneNow">1</span><span class="scene-nav__sep">/</span><span
-              id="sceneTotal">1</span></strong>
-          <button id="nextScene" type="button" title="Cảnh tiếp">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
-              stroke-linecap="round" stroke-linejoin="round">
-              <polyline points="9 18 15 12 9 6" />
-            </svg>
-          </button>
-        </div>
-      </div>
-      <article class="phone" id="previewPhone" title="Lăn chuột lên/xuống để chuyển cảnh">
-        <div class="card">
-          <div class="hero-title zone-terms">
-            <h2 id="leftTitle" title="Nhấp đúp để sửa vế trái">Khách quan</h2>
-            <h2 id="rightTitle" title="Nhấp đúp để sửa vế phải">Chủ quan</h2>
-          </div>
-          <div class="images zone-images" id="previewImages">
-            <div class="preview-image-wrap preview-image-wrap--left" id="leftImageWrap" title="Click để tải/thay ảnh trái">
-              <img id="leftImage" alt="Ảnh so sánh trái" />
-              <div class="preview-image-overlay">
-                <span class="preview-image-hint">+ Ảnh trái</span>
-              </div>
-            </div>
-            <div class="preview-image-wrap preview-image-wrap--right" id="rightImageWrap" title="Click để tải/thay ảnh phải">
-              <img id="rightImage" alt="Ảnh so sánh phải" />
-              <div class="preview-image-overlay">
-                <span class="preview-image-hint">+ Ảnh phải</span>
-              </div>
-            </div>
-          </div>
-          <div class="read-box zone-content">
-            <p id="highlightText" title="Click để nhảy tới kịch bản dòng này"></p>
-          </div>
-          <div class="zone-actor" id="zoneActor">
-            <div class="actor" id="actor" title="Bấm chuột phải để chọn tư thế nhân vật">
-              <b id="poseName">chỉ trái</b>
-              <img id="actorCustomImg" class="actor__custom-img" alt="" />
-              <i class="head"></i><i class="body"></i><i class="arm left"></i><i class="arm right"></i><i
-                class="leg one"></i><i class="leg two"></i>
-            </div>
-          </div>
-        </div>
-        <div class="actor-context-menu" id="actorContextMenu" hidden>
-          <div class="actor-context-menu__title">Tư thế nhân vật</div>
-          <button type="button" data-pose="point-left">👉 Chỉ trái</button>
-          <button type="button" data-pose="point-right">👈 Chỉ phải</button>
-          <button type="button" data-pose="think">❓ Đặt câu hỏi</button>
-          <button type="button" data-pose="explain-1">🗣️ Giải thích</button>
-          <button type="button" data-pose="explain-2">📢 Nhấn mạnh</button>
-          <button type="button" data-pose="explain-3">📊 Phân tích</button>
-          <button type="button" data-pose="none">🚫 Không nhân vật</button>
-        </div>
-      </article>
-      <div class="player">
-        <button class="btn-play" id="playButton" type="button">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-            <polygon points="5 3 19 12 5 21 5 3" />
-          </svg>
-          Phát thử
-        </button>
-        <time id="timeReadout" class="player__time">00:00</time>
-      </div>
-    </section>
-
+    <!-- CỘT TRÁI: Trình biên tập (panels) -->
     <section class="editor">
-      <nav class="tabs">
-        <button class="tab active" data-panel="contentPanel" type="button">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-            stroke-linecap="round" stroke-linejoin="round">
-            <rect x="3" y="3" width="18" height="18" rx="2" />
-            <path d="M3 9h18M9 21V9" />
-          </svg>
-          Trình biên soạn
-        </button>
-        <button class="tab" data-panel="voicePanel" type="button">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-            stroke-linecap="round" stroke-linejoin="round">
-            <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
-            <path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v4M8 23h8" />
-          </svg>
-          Thuyết minh
-        </button>
-        <button class="tab" data-panel="scenePanel" type="button">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-            stroke-linecap="round" stroke-linejoin="round">
-            <line x1="8" y1="6" x2="21" y2="6" />
-            <line x1="8" y1="12" x2="21" y2="12" />
-            <line x1="8" y1="18" x2="21" y2="18" />
-            <line x1="3" y1="6" x2="3.01" y2="6" />
-            <line x1="3" y1="12" x2="3.01" y2="12" />
-            <line x1="3" y1="18" x2="3.01" y2="18" />
-          </svg>
-          Phân cảnh &amp; Nhân vật
-        </button>
-        <button class="tab" data-panel="actorPanel" type="button">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-            stroke-linecap="round" stroke-linejoin="round">
-            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-            <circle cx="12" cy="7" r="4" />
-          </svg>
-          Cài đặt nhân vật
-        </button>
-      </nav>
-
       <div class="panel active" id="contentPanel">
-        <div class="panel__section">
-          <div class="scope-header">
-            <span class="scope-header__label">Đang chỉnh sửa cho:</span>
-            <div id="scopeNav" class="scope-nav"></div>
-          </div>
-          <div id="sceneOverrideBar" class="scene-override-bar" hidden>
-            <span id="sceneOverrideStatus">Đang dùng ảnh &amp; từ mặc định</span>
-            <div class="scene-override-bar__actions">
-              <button id="enableOverrideBtn" type="button" class="btn-ghost btn-ghost--sm">Tùy chỉnh riêng cho cảnh
-                này</button>
-              <button id="resetOverrideBtn" type="button" class="btn-ghost btn-ghost--sm btn-ghost--danger" hidden>Khôi
-                phục mặc định</button>
-            </div>
+
+        <!-- ① Scope selector: Toàn dự án / Cảnh X -->
+        <div class="cp-scope-bar">
+          <span class="cp-scope-bar__label">Phạm vi chỉnh sửa</span>
+          <div id="scopeNav" class="scope-nav"></div>
+          <div id="sceneOverrideBar" class="cp-override-pill" hidden>
+            <span id="sceneOverrideStatus" class="cp-override-pill__text">Đang dùng mặc định</span>
+            <button id="enableOverrideBtn" type="button" class="cp-pill-btn">Tùy chỉnh riêng</button>
+            <button id="resetOverrideBtn" type="button" class="cp-pill-btn cp-pill-btn--danger" hidden>↺ Reset</button>
           </div>
         </div>
-        <div class="panel__section">
-          <h2 class="panel__title">Từ so sánh</h2>
-          <div class="term-grid">
-            <label class="field-label">Vế trái<input id="leftTerm" value="Khách quan" /></label>
-            <label class="field-label field-label--color">Màu<input id="leftColor" type="color"
-                value="#b92c1e" /></label>
-            <label class="field-label">Vế phải<input id="rightTerm" value="Chủ quan" /></label>
-            <label class="field-label field-label--color">Màu<input id="rightColor" type="color"
-                value="#5d9a4d" /></label>
+
+        <!-- Clean User Guidance Card for Right-Click Editing -->
+        <div class="cp-hint-card">
+          <div class="cp-hint-card__header">
+            <span class="cp-hint-card__icon">💡</span>
+            <strong>Cài đặt nhanh trên Preview</strong>
+          </div>
+          <p class="cp-hint-card__text">
+            Tất cả cài đặt kiểu chữ, cỡ chữ, màu sắc, ảnh minh họa và nhân vật đã được chuyển sang <strong>Bảng điều khiển khi bấm Chuột Phải (Right-Click)</strong> trực tiếp vào các phần tử ở khung Xem trước (Preview).
+          </p>
+          <div class="cp-hint-card__features">
+            <div class="cp-hint-feature">🏷️ <b>Chuột phải Từ so sánh</b>: Đổi chữ, màu sắc, font, cỡ chữ</div>
+            <div class="cp-hint-feature">🖼️ <b>Chuột phải Ảnh minh họa</b>: Tải/thay/xóa ảnh vế trái &amp; vế phải</div>
+            <div class="cp-hint-feature">💬 <b>Chuột phải Phụ đề</b>: Chỉnh cỡ chữ, màu chữ, highlight &amp; hiệu ứng</div>
+            <div class="cp-hint-feature">🧍 <b>Chuột phải Nhân vật</b>: Đổi tư thế &amp; kích thước nhân vật</div>
+            <div class="cp-hint-feature">🎨 <b>Chuột phải Nền video</b>: Đổi màu nền &amp; tải ảnh nền</div>
           </div>
         </div>
-        <div class="panel__section">
-          <h2 class="panel__title">Kích thước chữ, Nhân vật &amp; Màu nền</h2>
-          <div class="style-config-grid">
-            <label class="field-label">Font chữ video
-              <select id="fontSelect">
-                <option value="Segoe UI, Tahoma, sans-serif">Segoe UI (Mặc định)</option>
-                <option value="Arial, Helvetica, sans-serif">Arial (Không lỗi font)</option>
-                <option value="Tahoma, Geneva, sans-serif">Tahoma (Rõ nét)</option>
-                <option value="Times New Roman, Times, serif">Times New Roman (Cổ điển)</option>
-                <option value="Georgia, serif">Georgia (Sang trọng)</option>
-              </select>
-            </label>
-            <label class="field-label">Cỡ chữ thuyết minh (px)
-              <div class="font-size-control">
-                <button id="fontSizeDecBtn" type="button" class="btn-step">-</button>
-                <input id="fontSizeInput" type="number" min="20" max="80" value="40" />
-                <button id="fontSizeIncBtn" type="button" class="btn-step">+</button>
-              </div>
-            </label>
-            <label class="field-label">Kích thước nhân vật (%)
-              <div class="font-size-control">
-                <button id="actorScaleDecBtn" type="button" class="btn-step">-</button>
-                <input id="actorScaleInput" type="number" min="30" max="250" value="100" step="5" />
-                <button id="actorScaleIncBtn" type="button" class="btn-step">+</button>
-              </div>
-            </label>
-            <label class="field-label">Cỡ chữ từ so sánh (px)
-              <div class="font-size-control">
-                <button id="termFontSizeDecBtn" type="button" class="btn-step">-</button>
-                <input id="termFontSizeInput" type="number" min="30" max="120" value="56" />
-                <button id="termFontSizeIncBtn" type="button" class="btn-step">+</button>
-              </div>
-            </label>
-            <label class="field-label field-label--color">Màu chữ nội dung
-              <input id="textColor" type="color" value="#202525" />
-            </label>
-            <label class="field-label field-label--color">Màu chữ Highlight
-              <input id="highlightColor" type="color" value="#3ac6c6" />
-            </label>
-            <label class="field-label">Độ đậm từ so sánh
-              <select id="termFontWeightSelect">
-                <option value="900" selected>900 — Siêu đậm (Black)</option>
-                <option value="700">700 — Đậm (Bold)</option>
-                <option value="600">600 — Đậm vừa (SemiBold)</option>
-                <option value="400">400 — Thường (Normal)</option>
-              </select>
-            </label>
-            <label class="field-label">Độ đậm chữ thuyết minh
-              <select id="subFontWeightSelect">
-                <option value="900">900 — Siêu đậm (Black)</option>
-                <option value="700" selected>700 — Đậm (Bold)</option>
-                <option value="600">600 — Đậm vừa (SemiBold)</option>
-                <option value="400">400 — Thường (Normal)</option>
-              </select>
-            </label>
-            <div class="video-bg-row">
-              <label class="field-label field-label--color">Màu nền
-                <input id="videoBg" type="color" value="#ffffff" />
-              </label>
-              <div class="video-bg-image-box">
-                <span class="field-label-text">Ảnh nền video (Fit 9:16)</span>
-                <div class="bg-image-actions">
-                  <label class="btn-upload btn-upload--sm">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                      stroke-linecap="round" stroke-linejoin="round">
-                      <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
-                      <circle cx="8.5" cy="8.5" r="1.5" />
-                      <polyline points="21 15 16 10 5 21" />
-                    </svg>
-                    Tải ảnh nền
-                    <input id="videoBgImageUpload" type="file" accept="image/*" />
-                  </label>
-                  <button id="videoBgImageRemoveBtn" type="button" class="btn-remove-image btn-remove-image--sm" hidden>Xóa ảnh nền</button>
+
+
+        <!-- Hidden Configuration Controls (Kept for 100% JS State Binding & Popover Sync) -->
+        <div id="hiddenConfigControls" style="display:none;" aria-hidden="true">
+          <!-- ② Từ so sánh + Hình ảnh -->
+          <div class="cp-section">
+            <div class="cp-terms-images-row">
+              <div class="cp-term-col">
+                <input id="leftTerm" class="cp-input-inline" value="Khách quan" />
+                <input id="leftColor" type="color" value="#b92c1e" />
+                <div class="cp-img-thumb" id="leftThumbWrap">
+                  <img id="leftEditorImage" alt="" />
+                  <span id="leftEditorPlaceholder"></span>
                 </div>
+                <input id="leftUpload" type="file" accept="image/*" />
+                <button id="leftRemoveBtn" type="button" hidden>✕</button>
+              </div>
+              <div class="cp-term-col">
+                <input id="rightTerm" class="cp-input-inline" value="Chủ quan" />
+                <input id="rightColor" type="color" value="#5d9a4d" />
+                <div class="cp-img-thumb" id="rightThumbWrap">
+                  <img id="rightEditorImage" alt="" />
+                  <span id="rightEditorPlaceholder"></span>
+                </div>
+                <input id="rightUpload" type="file" accept="image/*" />
+                <button id="rightRemoveBtn" type="button" hidden>✕</button>
               </div>
             </div>
           </div>
-          <div class="component-toggle-grid">
-            <label class="toggle-card">
-              <div class="switch">
-                <input id="showSubtitlesToggle" type="checkbox" checked />
-                <span class="slider"></span>
-              </div>
-              <span class="toggle-card__label">💬 Chữ thuyết minh (Sub)</span>
-            </label>
-            <label class="toggle-card">
-              <div class="switch">
-                <input id="showTermsToggle" type="checkbox" checked />
-                <span class="slider"></span>
-              </div>
-              <span class="toggle-card__label">🏷️ Từ so sánh</span>
-            </label>
-            <label class="toggle-card">
-              <div class="switch">
-                <input id="showIllustrationsToggle" type="checkbox" checked />
-                <span class="slider"></span>
-              </div>
-              <span class="toggle-card__label">🖼️ Ảnh minh họa</span>
-            </label>
-            <label class="toggle-card">
-              <div class="switch">
-                <input id="showActorToggle" type="checkbox" checked />
-                <span class="slider"></span>
-              </div>
-              <span class="toggle-card__label">🧍 Nhân vật</span>
-            </label>
+
+          <!-- ③ Typography + Màu sắc -->
+          <div class="cp-section">
+            <select id="fontSelect">
+              <option value="Segoe UI, Tahoma, sans-serif">Segoe UI</option>
+              <option value="Arial, Helvetica, sans-serif">Arial</option>
+              <option value="Tahoma, Geneva, sans-serif">Tahoma</option>
+              <option value="Times New Roman, Times, serif">Times New Roman</option>
+              <option value="Georgia, serif">Georgia</option>
+            </select>
+            <select id="termFontWeightSelect">
+              <option value="900" selected>900</option>
+              <option value="700">700</option>
+              <option value="600">600</option>
+              <option value="400">400</option>
+            </select>
+            <select id="subFontWeightSelect">
+              <option value="900">900</option>
+              <option value="700" selected>700</option>
+              <option value="600">600</option>
+              <option value="400">400</option>
+            </select>
+            <select id="animationSelect">
+              <option value="none">none</option>
+              <option value="fade" selected>fade</option>
+              <option value="slide">slide</option>
+              <option value="pop">pop</option>
+              <option value="fly">fly</option>
+            </select>
+
+            <button id="fontSizeDecBtn" type="button">−</button>
+            <input id="fontSizeInput" type="number" value="40" />
+            <button id="fontSizeIncBtn" type="button">+</button>
+
+            <button id="termFontSizeDecBtn" type="button">−</button>
+            <input id="termFontSizeInput" type="number" value="56" />
+            <button id="termFontSizeIncBtn" type="button">+</button>
+
+            <button id="actorScaleDecBtn" type="button">−</button>
+            <input id="actorScaleInput" type="number" value="100" />
+            <button id="actorScaleIncBtn" type="button">+</button>
+
+            <input id="textColor" type="color" value="#202525" />
+            <input id="highlightColor" type="color" value="#3ac6c6" />
+            <input id="videoBg" type="color" value="#ffffff" />
+
+            <input id="videoBgImageUpload" type="file" accept="image/*" />
+            <button id="videoBgImageRemoveBtn" type="button" hidden>✕</button>
+          </div>
+
+          <!-- ④ Bật/tắt thành phần toggles -->
+          <div class="cp-section">
+            <input id="showSubtitlesToggle" type="checkbox" checked />
+            <input id="showTermsToggle" type="checkbox" checked />
+            <input id="showIllustrationsToggle" type="checkbox" checked />
+            <input id="showActorToggle" type="checkbox" checked />
           </div>
         </div>
-        <div class="panel__section">
-          <h2 class="panel__title">Ảnh minh họa</h2>
-          <div class="asset-grid">
-            <article class="asset-card">
-              <div class="asset-card__preview">
-                <img id="leftEditorImage" alt="Ảnh trái" />
-                <span class="asset-card__placeholder" id="leftEditorPlaceholder">Chưa có ảnh</span>
-              </div>
-              <div class="asset-card__actions">
-                <label class="btn-upload">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
-                    stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                    <polyline points="17 8 12 3 7 8" />
-                    <line x1="12" y1="3" x2="12" y2="15" />
-                  </svg>
-                  Tải ảnh trái
-                  <input id="leftUpload" type="file" accept="image/*" />
-                </label>
-                <button id="leftRemoveBtn" type="button" class="btn-remove-image" hidden>Xóa</button>
-              </div>
-            </article>
-            <article class="asset-card">
-              <div class="asset-card__preview">
-                <img id="rightEditorImage" alt="Ảnh phải" />
-                <span class="asset-card__placeholder" id="rightEditorPlaceholder">Chưa có ảnh</span>
-              </div>
-              <div class="asset-card__actions">
-                <label class="btn-upload">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
-                    stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                    <polyline points="17 8 12 3 7 8" />
-                    <line x1="12" y1="3" x2="12" y2="15" />
-                  </svg>
-                  Tải ảnh phải
-                  <input id="rightUpload" type="file" accept="image/*" />
-                </label>
-                <button id="rightRemoveBtn" type="button" class="btn-remove-image" hidden>Xóa</button>
-              </div>
-            </article>
-          </div>
-        </div>
+
       </div>
 
       <div class="panel" id="voicePanel">
@@ -634,6 +503,90 @@
       </div>
     </section>
 
+    <!-- VÙNG TRUNG TÂM: Preview lớn + Player controls -->
+    <section class="preview">
+      <div class="preview__header">
+        <span class="preview__label">Xem trước</span>
+        <div class="scene-nav">
+          <button id="prevScene" type="button" title="Cảnh trước">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+              stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="15 18 9 12 15 6" />
+            </svg>
+          </button>
+          <strong><span id="sceneNow">1</span><span class="scene-nav__sep">/</span><span id="sceneTotal">1</span></strong>
+          <button id="nextScene" type="button" title="Cảnh tiếp">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+              stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="9 18 15 12 9 6" />
+            </svg>
+          </button>
+        </div>
+      </div>
+      <article class="phone" id="previewPhone" title="Lăn chuột lên/xuống để chuyển cảnh">
+        <div class="card">
+          <div class="hero-title zone-terms">
+            <h2 id="leftTitle" title="Nhấp đúp để sửa vế trái">Khách quan</h2>
+            <h2 id="rightTitle" title="Nhấp đúp để sửa vế phải">Chủ quan</h2>
+          </div>
+          <div class="images zone-images" id="previewImages">
+            <div class="preview-image-wrap preview-image-wrap--left" id="leftImageWrap" title="Click để tải/thay ảnh trái">
+              <img id="leftImage" alt="Ảnh so sánh trái" />
+              <div class="preview-image-overlay">
+                <span class="preview-image-hint">+ Ảnh trái</span>
+              </div>
+            </div>
+            <div class="preview-image-wrap preview-image-wrap--right" id="rightImageWrap" title="Click để tải/thay ảnh phải">
+              <img id="rightImage" alt="Ảnh so sánh phải" />
+              <div class="preview-image-overlay">
+                <span class="preview-image-hint">+ Ảnh phải</span>
+              </div>
+            </div>
+          </div>
+          <div class="read-box zone-content">
+            <p id="highlightText" title="Click để nhảy tới kịch bản dòng này"></p>
+          </div>
+          <div class="zone-actor" id="zoneActor">
+            <div class="actor" id="actor" title="Bấm chuột phải để chọn tư thế nhân vật">
+              <b id="poseName">chỉ trái</b>
+              <img id="actorCustomImg" class="actor__custom-img" alt="" />
+              <i class="head"></i><i class="body"></i><i class="arm left"></i><i class="arm right"></i><i
+                class="leg one"></i><i class="leg two"></i>
+            </div>
+          </div>
+        </div>
+        <div class="actor-context-menu" id="actorContextMenu" hidden>
+          <div class="actor-context-menu__title">Tư thế nhân vật</div>
+          <button type="button" data-pose="point-left">👉 Chỉ trái</button>
+          <button type="button" data-pose="point-right">👈 Chỉ phải</button>
+          <button type="button" data-pose="think">❓ Đặt câu hỏi</button>
+          <button type="button" data-pose="explain-1">🗣️ Giải thích</button>
+          <button type="button" data-pose="explain-2">📢 Nhấn mạnh</button>
+          <button type="button" data-pose="explain-3">📊 Phân tích</button>
+          <button type="button" data-pose="none">🚫 Không nhân vật</button>
+        </div>
+      </article>
+      <div class="player">
+        <button class="btn-play" id="playButton" type="button">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+            <polygon points="5 3 19 12 5 21 5 3" />
+          </svg>
+          Phát thử
+        </button>
+        <time id="timeReadout" class="player__time">00:00</time>
+      </div>
+
+      <!-- Universal Context Menu Popover for Preview Elements -->
+      <div class="preview-context-menu" id="previewContextMenu" hidden>
+        <div class="pcm-header">
+          <span class="pcm-title" id="pcmTitle">⚙️ Cài đặt nhanh</span>
+          <button type="button" class="pcm-close" id="pcmCloseBtn" title="Đóng">×</button>
+        </div>
+        <div class="pcm-body" id="pcmBody"></div>
+      </div>
+    </section>
+
+    <!-- CỘT PHẢI: Biên kịch nội dung -->
     <aside class="script">
       <div class="script-head">
         <div class="script-head__info">
@@ -693,9 +646,11 @@ Khi so sánh hai khái niệm, hãy nhìn vào điểm khác nhau trong cách đ
         </div>
         <p class="script-tip__desc">💡 Đặt từ/cụm từ cần phát âm trong <code>[...]</code> và chọn ngôn ngữ ở menu trên, hoặc viết dạng <code>Từ[phiên âm]</code>.</p>
       </div>
-      <div class="timeline" id="timeline"></div>
     </aside>
   </main>
+
+  <!-- Clip timeline (hidden, kept for app.js backward compatibility) -->
+  <div class="timeline" id="timeline" hidden></div>
 
   <div class="render-panel" id="renderPanel" hidden>
     <div class="render-panel__backdrop"></div>
